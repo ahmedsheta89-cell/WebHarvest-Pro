@@ -1,0 +1,16 @@
+# WebHarvest Pro - Docker (Node.js Version)
+# نسخة Node.js أسرع وأكثر استقراراً
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy all files
+COPY . .
+
+# No build needed for static files
+
+EXPOSE 8080
+
+# Use Node.js server instead of Python
+CMD ["node", "server.js"]

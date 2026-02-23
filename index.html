@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WebHarvest Pro - أداة إدارة المنتجات الاحترافية">
+    <meta name="theme-color" content="#6366f1">
+    <title>WebHarvest Pro | إدارة المنتجات</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles/main.css">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader">
+            <div class="loader-icon">
+                <i class="fas fa-seedling"></i>
+            </div>
+            <div class="loader-text">WebHarvest Pro</div>
+            <div class="loader-spinner"></div>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header id="app-header" class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button id="menu-toggle" class="btn btn-icon" title="القائمة">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-input" placeholder="بحث في المنتجات...">
+                    </div>
+                </div>
+                <div class="header-center">
+                    <div class="logo">
+                        <i class="fas fa-seedling"></i>
+                        <span>WebHarvest Pro</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button id="btn-barcode" class="btn btn-icon" title="قارئ الباركود">
+                        <i class="fas fa-barcode"></i>
+                    </button>
+                    <button id="btn-sync" class="btn btn-icon" title="مزامنة Excel">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button id="btn-bulk" class="btn btn-icon" title="عمليات جماعية">
+                        <i class="fas fa-layer-group"></i>
+                    </button>
+                    <button id="btn-dashboard" class="btn btn-icon" title="الإحصائيات">
+                        <i class="fas fa-chart-pie"></i>
+                    </button>
+                    <button id="btn-settings" class="btn btn-icon" title="الإعدادات">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside id="app-sidebar" class="app-sidebar">
+            <div class="sidebar-content">
+                <!-- Quick Actions -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">إجراءات سريعة</h3>
+                    <button id="btn-add-product" class="sidebar-btn primary">
+                        <i class="fas fa-plus"></i>
+                        <span>إضافة منتج</span>
+                    </button>
+                    <button id="btn-scrape" class="sidebar-btn">
+                        <i class="fas fa-download"></i>
+                        <span>سحب من موقع</span>
+                    </button>
+                    <button id="btn-import" class="sidebar-btn">
+                        <i class="fas fa-file-import"></i>
+                        <span>استيراد Excel</span>
+                    </button>
+                    <button id="btn-export" class="sidebar-btn">
+                        <i class="fas fa-file-export"></i>
+                        <span>تصدير الكل</span>
+                    </button>
+                </div>
+
+                <!-- Filters -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">التصفية</h3>
+                    <div class="filter-group">
+                        <label>الحالة</label>
+                        <select id="filter-status" class="form-select">
+                            <option value="">الكل</option>
+                            <option value="published">منشور</option>
+                            <option value="draft">مسودة</option>
+                            <option value="archived">مؤرشف</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>التصنيف</label>
+                        <select id="filter-category" class="form-select">
+                            <option value="">الكل</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>المخزون</label>
+                        <select id="filter-stock" class="form-select">
+                            <option value="">الكل</option>
+                            <option value="in-stock">متوفر</option>
+                            <option value="low-stock">منخفض</option>
+                            <option value="out-of-stock">نفد</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>الربح</label>
+                        <select id="filter-profit" class="form-select">
+                            <option value="">الكل</option>
+                            <option value="high">عالي (50%+)</option>
+                            <option value="medium">متوسط (25-50%)</option>
+                            <option value="low">منخفض (أقل من 25%)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Websites -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">المواقع المدعومة</h3>
+                    <div class="websites-list">
+                        <div class="website-item" data-site="amazon">
+                            <img src="https://logo.clearbit.com/amazon.com" alt="Amazon" class="website-icon">
+                            <span>Amazon</span>
+                        </div>
+                        <div class="website-item" data-site="ebay">
+                            <img src="https://logo.clearbit.com/ebay.com" alt="eBay" class="website-icon">
+                            <span>eBay</span>
+                        </div>
+                        <div class="website-item" data-site="noon">
+                            <img src="https://logo.clearbit.com/noon.com" alt="Noon" class="website-icon">
+                            <span>Noon</span>
+                        </div>
+                        <div class="website-item" data-site="iherb">
+                            <img src="https://logo.clearbit.com/iherb.com" alt="iHerb" class="website-icon">
+                            <span>iHerb</span>
+                        </div>
+                        <div class="website-item" data-site="shopify">
+                            <i class="fas fa-store website-icon-fa"></i>
+                            <span>متاجر Shopify</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="sidebar-section stats-section">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-total">0</span>
+                        <span class="stat-label">منتج</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-value">0</span>
+                        <span class="stat-label">جنيه</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-profit">0</span>
+                        <span class="stat-label">ربح</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="app-main" class="app-main">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="select-all">
+                        <span>تحديد الكل</span>
+                    </label>
+                    <span class="selected-count" id="selected-count"></span>
+                </div>
+                <div class="toolbar-center">
+                    <select id="sort-by" class="form-select">
+                        <option value="newest">الأحدث</option>
+                        <option value="oldest">الأقدم</option>
+                        <option value="name">الاسم</option>
+                        <option value="price-high">السعر: الأعلى</option>
+                        <option value="price-low">السعر: الأقل</option>
+                        <option value="profit">الربح</option>
+                        <option value="stock">المخزون</option>
+                    </select>
+                </div>
+                <div class="toolbar-right">
+                    <div class="view-toggle">
+                        <button id="btn-grid-view" class="btn btn-icon active" title="عرض شبكي">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button id="btn-list-view" class="btn btn-icon" title="عرض قائمة">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div id="products-container" class="products-container">
+                <!-- Products will be rendered here -->
+                <div class="empty-state">
+                    <i class="fas fa-box-open"></i>
+                    <h3>لا توجد منتجات</h3>
+                    <p>ابدأ بإضافة منتجات جديدة</p>
+                    <button class="btn btn-primary" onclick="app.showAddModal()">
+                        <i class="fas fa-plus"></i>
+                        إضافة منتج
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination" class="pagination">
+                <!-- Pagination will be rendered here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add/Edit Product Modal -->
+    <div id="modal-add-product" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modal-add-title">إضافة منتج جديد</h2>
+                <button class="modal-close" onclick="UI.closeModal('modal-add-product')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="form-product" class="product-form">
+                    <!-- Tabs -->
+                    <div class="form-tabs">
+                        <button type="button" class="tab-btn active" data-tab="basic">البيانات الأساسية</button>
+                        <button type="button" class="tab-btn" data-tab="pricing">التسعير</button>
+                        <button type="button" class="tab-btn" data-tab="images">الصور</button>
+                        <button type="button" class="tab-btn" data-tab="inventory">المخزون</button>
+                    </div>
+
+                    <!-- Basic Info Tab -->
+                    <div class="tab-content active" id="tab-basic">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>اسم المنتج (EN) *</label>
+                                <input type="text" id="product-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>اسم المنتج (AR)</label>
+                                <input type="text" id="product-name-ar">
+                                <button type="button" class="btn btn-sm btn-link" onclick="app.translateField('name')">
+                                    <i class="fas fa-language"></i> ترجمة
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>التصنيف</label>
+                                <select id="product-category" class="form-select">
+                                    <option value="">اختر التصنيف</option>
+                                    <option value="skincare">العناية بالبشرة</option>
+                                    <option value="haircare">العناية بالشعر</option>
+                                    <option value="makeup">مستحضرات التجميل</option>
+                                    <option value="fragrance">العطور</option>
+                                    <option value="personal-care">العناية الشخصية</option>
+                                    <option value="health">الصحة</option>
+                                    <option value="baby">أطفال</option>
+                                    <option value="other">أخرى</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>الباركود</label>
+                                <div class="input-with-btn">
+                                    <input type="text" id="product-barcode">
+                                    <button type="button" class="btn btn-icon" onclick="app.scanBarcode()" title="مسح بالكاميرا">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label>الوصف (EN)</label>
+                                <textarea id="product-description" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group full-width">
+                                <label>الوصف (AR)</label>
+                                <textarea id="product-description-ar" rows="3"></textarea>
+                                <button type="button" class="btn btn-sm btn-link" onclick="app.translateField('description')">
+                                    <i class="fas fa-language"></i> ترجمة
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>المصدر (URL)</label>
+                                <input type="url" id="product-source-url" placeholder="https://...">
+                            </div>
+                            <div class="form-group">
+                                <label>العلامة التجارية</label>
+                                <input type="text" id="product-brand">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Tab -->
+                    <div class="tab-content" id="tab-pricing">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>سعر الشراء (جنيه) *</label>
+                                <input type="number" id="product-purchase-price" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>سعر السوق ($)</label>
+                                <input type="number" id="product-market-price" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>سعر البيع (جنيه)</label>
+                                <input type="number" id="product-sale-price" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>الربح</label>
+                                <input type="text" id="product-profit" readonly class="readonly">
+                            </div>
+                        </div>
+
+                        <div class="pricing-summary">
+                            <div class="summary-item">
+                                <span class="label">نسبة الربح:</span>
+                                <span class="value" id="profit-margin">0%</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">معدل التحويل:</span>
+                                <span class="value">1$ = <span id="exchange-rate">50</span> جنيه</span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>هامش الربح المطلوب %</label>
+                                <input type="number" id="target-margin" value="30" min="0" max="100">
+                            </div>
+                            <div class="form-group">
+                                <button type="button" class="btn btn-secondary" onclick="app.calculatePrice()">
+                                    <i class="fas fa-calculator"></i>
+                                    حساب السعر تلقائياً
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Images Tab -->
+                    <div class="tab-content" id="tab-images">
+                        <div class="images-upload">
+                            <div class="upload-area" id="drop-zone">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>اسحب الصور هنا أو اضغط للاختيار</p>
+                                <input type="file" id="image-input" multiple accept="image/*" hidden>
+                            </div>
+
+                            <div class="images-preview" id="images-preview">
+                                <!-- Preview images will appear here -->
+                            </div>
+                        </div>
+
+                        <div class="image-actions">
+                            <button type="button" class="btn btn-secondary" onclick="app.removeBackground()">
+                                <i class="fas fa-eraser"></i>
+                                إزالة الخلفية
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="app.optimizeImages()">
+                                <i class="fas fa-compress-alt"></i>
+                                تحسين الصور
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Tab -->
+                    <div class="tab-content" id="tab-inventory">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>الكمية</label>
+                                <input type="number" id="product-stock" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>تنبيه المخزون المنخفض</label>
+                                <input type="number" id="low-stock-alert" value="5">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>SKU</label>
+                                <input type="text" id="product-sku">
+                            </div>
+                            <div class="form-group">
+                                <label>الحالة</label>
+                                <select id="product-status" class="form-select">
+                                    <option value="draft">مسودة</option>
+                                    <option value="published">منشور</option>
+                                    <option value="archived">مؤرشف</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>الوزن (كجم)</label>
+                                <input type="number" id="product-weight" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>الأبعاد (سم)</label>
+                                <div class="dimensions-inputs">
+                                    <input type="number" id="product-length" placeholder="طول">
+                                    <input type="number" id="product-width" placeholder="عرض">
+                                    <input type="number" id="product-height" placeholder="ارتفاع">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="UI.closeModal('modal-add-product')">إلغاء</button>
+                <button class="btn btn-primary" onclick="app.saveProduct()">
+                    <i class="fas fa-save"></i>
+                    حفظ المنتج
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scrape Modal -->
+    <div id="modal-scrape" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>سحب منتج من موقع</h2>
+                <button class="modal-close" onclick="UI.closeModal('modal-scrape')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>رابط المنتج</label>
+                    <input type="url" id="scrape-url" placeholder="https://www.amazon.com/dp/..." class="form-input">
+                </div>
+
+                <div class="scrape-options">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="scrape-images" checked>
+                        <span>سحب الصور</span>
+                    </label>
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="scrape-translate" checked>
+                        <span>ترجمة تلقائية</span>
+                    </label>
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="scrape-upload" checked>
+                        <span>رفع الصور لـ Cloudinary</span>
+                    </label>
+                </div>
+
+                <div id="scrape-progress" class="scrape-progress hidden">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="scrape-progress-bar"></div>
+                    </div>
+                    <p class="progress-message" id="scrape-message">جاري السحب...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="UI.closeModal('modal-scrape')">إلغاء</button>
+                <button class="btn btn-primary" onclick="app.startScraping()">
+                    <i class="fas fa-download"></i>
+                    سحب البيانات
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>الإعدادات</h2>
+                <button class="modal-close" onclick="UI.closeModal('modal-settings')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="firebase">Firebase</button>
+                    <button class="settings-tab" data-tab="cloudinary">Cloudinary</button>
+                    <button class="settings-tab" data-tab="pricing">التسعير</button>
+                    <button class="settings-tab" data-tab="api">API Keys</button>
+                    <button class="settings-tab" data-tab="general">عام</button>
+                </div>
+
+                <!-- Firebase Settings -->
+                <div class="settings-content active" id="settings-firebase">
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="text" id="firebase-api-key" class="form-input" placeholder="AIzaSy...">
+                    </div>
+                    <div class="form-group">
+                        <label>Auth Domain</label>
+                        <input type="text" id="firebase-auth-domain" class="form-input" placeholder="your-project.firebaseapp.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Project ID</label>
+                        <input type="text" id="firebase-project-id" class="form-input" placeholder="your-project-id">
+                    </div>
+                    <div class="form-group">
+                        <label>Database URL</label>
+                        <input type="text" id="firebase-database-url" class="form-input" placeholder="https://your-project.firebaseio.com">
+                    </div>
+                    <button class="btn btn-secondary" onclick="app.testFirebase()">
+                        <i class="fas fa-plug"></i>
+                        اختبار الاتصال
+                    </button>
+                </div>
+
+                <!-- Cloudinary Settings -->
+                <div class="settings-content" id="settings-cloudinary">
+                    <div class="form-group">
+                        <label>Cloud Name</label>
+                        <input type="text" id="cloudinary-cloud-name" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Upload Preset</label>
+                        <input type="text" id="cloudinary-upload-preset" class="form-input">
+                    </div>
+                    <button class="btn btn-secondary" onclick="app.testCloudinary()">
+                        <i class="fas fa-plug"></i>
+                        اختبار الاتصال
+                    </button>
+                </div>
+
+                <!-- Pricing Settings -->
+                <div class="settings-content" id="settings-pricing">
+                    <div class="form-group">
+                        <label>سعر صرف الدولار (جنيه)</label>
+                        <input type="number" id="exchange-rate-setting" class="form-input" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label>هامش الربح الافتراضي %</label>
+                        <input type="number" id="default-margin" class="form-input" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label>أقل ربح مقبول (جنيه)</label>
+                        <input type="number" id="min-profit" class="form-input" value="20">
+                    </div>
+                </div>
+
+                <!-- API Keys -->
+                <div class="settings-content" id="settings-api">
+                    <div class="form-group">
+                        <label>Google Vision API Key (اختياري)</label>
+                        <input type="text" id="google-vision-key" class="form-input" placeholder="AIzaSy...">
+                        <small>للـ OCR وتحليل الصور</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Remove.bg API Key (اختياري)</label>
+                        <input type="text" id="removebg-key" class="form-input" placeholder="your-api-key">
+                        <small>50 صورة مجانية شهرياً</small>
+                    </div>
+                </div>
+
+                <!-- General Settings -->
+                <div class="settings-content" id="settings-general">
+                    <div class="form-group">
+                        <label>اللغة</label>
+                        <select id="language" class="form-select">
+                            <option value="ar">العربية</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>السمة</label>
+                        <select id="theme" class="form-select">
+                            <option value="dark">داكن</option>
+                            <option value="light">فاتح</option>
+                            <option value="auto">تلقائي</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>المنتجات في الصفحة</label>
+                        <select id="per-page" class="form-select">
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-danger" onclick="app.clearAllData()">
+                            <i class="fas fa-trash"></i>
+                            مسح كل البيانات
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="UI.closeModal('modal-settings')">إلغاء</button>
+                <button class="btn btn-primary" onclick="app.saveSettings()">
+                    <i class="fas fa-save"></i>
+                    حفظ الإعدادات
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Operations Modal -->
+    <div id="modal-bulk" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>عمليات جماعية</h2>
+                <button class="modal-close" onclick="UI.closeModal('modal-bulk')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="selected-info" id="bulk-selected-info">لم يتم تحديد منتجات</p>
+                
+                <div class="bulk-actions-grid">
+                    <button class="bulk-action-btn" onclick="app.bulkEdit()">
+                        <i class="fas fa-edit"></i>
+                        <span>تعديل</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkTranslate()">
+                        <i class="fas fa-language"></i>
+                        <span>ترجمة</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkCalculatePrice()">
+                        <i class="fas fa-calculator"></i>
+                        <span>حساب الأسعار</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkUploadImages()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <span>رفع الصور</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkRemoveBackground()">
+                        <i class="fas fa-eraser"></i>
+                        <span>إزالة الخلفية</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkExport()">
+                        <i class="fas fa-file-export"></i>
+                        <span>تصدير</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkChangeStatus('published')">
+                        <i class="fas fa-check-circle"></i>
+                        <span>نشر</span>
+                    </button>
+                    <button class="bulk-action-btn" onclick="app.bulkChangeStatus('draft')">
+                        <i class="fas fa-file"></i>
+                        <span>مسودة</span>
+                    </button>
+                    <button class="bulk-action-btn danger" onclick="app.bulkDelete()">
+                        <i class="fas fa-trash"></i>
+                        <span>حذف</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Modal -->
+    <div id="modal-dashboard" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>الإحصائيات والتقارير</h2>
+                <button class="modal-close" onclick="UI.closeModal('modal-dashboard')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-box"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="dash-total">0</span>
+                            <span class="stat-text">إجمالي المنتجات</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="dash-published">0</span>
+                            <span class="stat-text">منشور</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon yellow"><i class="fas fa-file"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="dash-draft">0</span>
+                            <span class="stat-text">مسودة</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="dash-low-stock">0</span>
+                            <span class="stat-text">مخزون منخفض</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h3>توزيع التصنيفات</h3>
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>توزيع الأرباح</h3>
+                        <canvas id="profitChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="dashboard-tables">
+                    <div class="table-card">
+                        <h3>أعلى المنتجات ربحاً</h3>
+                        <div id="top-products-table"></div>
+                    </div>
+                    <div class="table-card">
+                        <h3>أحدث النشاطات</h3>
+                        <div id="recent-activity"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="app.exportReport()">
+                    <i class="fas fa-file-pdf"></i>
+                    تصدير تقرير PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode Scanner Modal -->
+    <div id="modal-barcode" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>قارئ الباركود</h2>
+                <button class="modal-close" onclick="app.closeBarcodeScanner()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="barcode-scanner">
+                    <video id="barcode-video" autoplay playsinline></video>
+                    <div class="scanner-overlay">
+                        <div class="scanner-line"></div>
+                    </div>
+                </div>
+                <p class="scanner-hint">وجه الكاميرا نحو الباركود</p>
+                <div id="barcode-result" class="barcode-result hidden">
+                    <span id="barcode-value"></span>
+                    <button class="btn btn-primary btn-sm" onclick="app.searchByBarcode()">
+                        بحث
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Progress Overlay -->
+    <div id="progress-overlay" class="progress-overlay hidden">
+        <div class="progress-content">
+            <div class="progress-spinner"></div>
+            <p id="progress-message">جاري المعالجة...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div id="confirm-dialog" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="UI.confirmCancel()">إلغاء</button>
+                <button class="btn btn-danger" id="confirm-btn">تأكيد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- App -->
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>

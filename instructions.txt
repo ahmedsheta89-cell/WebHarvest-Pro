@@ -1,0 +1,11 @@
+⚠️ WINDOWS SMART
+[truncated]
+0-Stable
+2. Right-click start-simple.bat
+3. Click "Properties"
+4. Check "Unblock" at bottom
+5. Click OK
+6. Double-click to run
+
+OR use Python (no
+[truncated]":

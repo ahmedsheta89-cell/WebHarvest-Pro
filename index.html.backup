@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebHarvest Pro - أداة إدارة المنتجات</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+    <link rel="alternate icon" type="image/png" href="assets/icons/icon-96x96.png">
+    <link rel="shortcut icon" href="assets/icons/favicon.ico">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="assets/icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="assets/icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="assets/icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="assets/icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="assets/icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+    
+    <!-- CSS -->
+    <style>
+        /* Base styles without Tailwind dependency */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            background: #0f172a; 
+            color: white; 
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .hidden { display: none; }
+        .text-center { text-align: center; }
+        .text-white { color: white; }
+        .text-gray { color: #94a3b8; }
+        .bg-dark { background: #0f172a; }
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #8b5cf6;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            border: none; cursor: pointer;
+            font-family: inherit; font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            color: white;
+        }
+        .btn-secondary {
+            background: #334155;
+            color: white;
+        }
+        .form-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #334155;
+            border-radius: 0.75rem;
+            background: #1e293b;
+            color: white;
+            font-family: inherit;
+        }
+        .form-input::placeholder { color: #64748b; }
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        .grid { display: grid; gap: 1.5rem; }
+        @media (min-width: 768px) {
+            .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+            .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+        }
+        @media (min-width: 1024px) {
+            .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+        }
+        .header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #334155;
+            position: sticky; top: 0; z-index: 50;
+        }
+        .footer {
+            border-top: 1px solid #334155;
+            padding: 1.5rem;
+            margin-top: 3rem;
+        }
+        .nav-link {
+            display: inline-flex; align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            color: #94a3b8;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .nav-link:hover { 
+            background: rgba(139, 92, 246, 0.2); 
+            color: #c084fc; 
+        }
+        .action-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-decoration: none;
+            display: block;
+            transition: all 0.3s;
+        }
+        .action-card:hover {
+            border-color: #8b5cf6;
+            transform: translateY(-2px);
+        }
+        .icon-box {
+            width: 3.5rem; height: 3.5rem;
+            border-radius: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+        }
+        .purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .pink { background: linear-gradient(135deg, #ec4899, #db2777); }
+        .blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .green { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .yellow { background: linear-gradient(135deg, #eab308, #ca8a04); }
+        .red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .feature-icon {
+            width: 3rem; height: 3rem;
+            border-radius: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem;
+        }
+        .feature-card {
+            background: rgba(30, 41, 59, 0.3);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+        .stat-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .site-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #334155;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        .py-16 { padding-top: 4rem; padding-bottom: 4rem; }
+        .mb-12 { margin-bottom: 3rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mt-12 { margin-top: 3rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-2 { margin-top: 0.5rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        .ml-2 { margin-left: 0.5rem; }
+        .text-5xl { font-size: 3rem; font-weight: 700; }
+        .text-3xl { font-size: 1.875rem; font-weight: 700; }
+        .text-2xl { font-size: 1.5rem; font-weight: 700; }
+        .text-xl { font-size: 1.25rem; }
+        .text-lg { font-size: 1.125rem; font-weight: 600; }
+        .text-sm { font-size: 0.875rem; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .max-w-2xl { max-width: 42rem; margin-left: auto; margin-right: auto; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .z-50 { z-index: 50; }
+        .bg-warning { background: #eab308; }
+        .text-dark { color: #0f172a; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .page-content { margin-right: 16rem; }
+        @media (max-width: 768px) {
+            .page-content { margin-right: 0; }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
+</head>
+<body class="min-h-screen">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-dark flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <h2 class="text-white text-2xl font-bold">WebHarvest Pro</h2>
+            <p class="text-gray mt-2">جاري التحميل...</p>
+        </div>
+    </div>
+
+    <!-- Offline Indicator -->
+    <div id="offline-indicator" class="fixed top-0 right-0 left-0 bg-warning text-dark text-center py-2 z-50 hidden">
+        <i class="fas fa-wifi-slash mr-2"></i> أنت تعمل في وضع عدم الاتصال
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="container py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">
+                            <i class="fas fa-spider text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-white text-xl font-bold">WebHarvest Pro</h1>
+                            <p class="text-gray text-sm">أداة إدارة المنتجات الذكية</p>
+                        </div>
+                    </div>
+                    <nav class="flex items-center gap-2">
+                        <a href="pages/dashboard.html" class="nav-link">
+                            <i class="fas fa-chart-line ml-2"></i>لوحة التحكم
+                        </a>
+                        <a href="pages/products.html" class="nav-link">
+                            <i class="fas fa-box ml-2"></i>المنتجات
+                        </a>
+                        <a href="pages/settings.html" class="nav-link">
+                            <i class="fas fa-cog ml-2"></i>الإعدادات
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="container py-16 page-content">
+            <div class="text-center mb-12">
+                <h2 class="text-5xl font-bold text-white mb-4">
+                    مرحباً بك في <span class="text-gradient">WebHarvest Pro</span>
+                </h2>
+                <p class="text-xl text-gray max-w-2xl mx-auto">
+                    الأداة الذكية لإدارة منتجات متجرك - سكرابر تلقائي + ترجمة فورية + تصدير متعدد
+                </p>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md\\:grid-cols-2 lg\\:grid-cols-4 gap-6 mb-12">
+                <a href="pages/products.html?action=scrape" class="action-card">
+                    <div class="icon-box purple">
+                        <i class="fas fa-spider text-white"></i>
+                    </div>
+                    <h3 class="text-white text-lg font-semibold mt-4">سحب منتجات جديد</h3>
+                    <p class="text-gray text-sm mt-1">من أي موقع تجاري</p>
+                </a>
+
+                <a href="pages/products.html?action=barcode" class="action-card">
+                    <div class="icon-box pink">
+                        <i class="fas fa-barcode text-white"></i>
+                    </div>
+                    <h3 class="text-white text-lg font-semibold mt-4">مسح باركود</h3>
+                    <p class="text-gray text-sm mt-1">إضافة سريعة بالكاميرا</p>
+                </a>
+
+                <a href="pages/products.html" class="action-card">
+                    <div class="icon-box blue">
+                        <i class="fas fa-file-excel text-white"></i>
+                    </div>
+                    <h3 class="text-white text-lg font-semibold mt-4">استيراد Excel</h3>
+                    <p class="text-gray text-sm mt-1">رفع ملف الأسعار</p>
+                </a>
+
+                <a href="pages/products.html?action=export" class="action-card">
+                    <div class="icon-box green">
+                        <i class="fas fa-download text-white"></i>
+                    </div>
+                    <h3 class="text-white text-lg font-semibold mt-4">تصدير المنتجات</h3>
+                    <p class="text-gray text-sm mt-1">Excel, WooCommerce, Shopify</p>
+                </a>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="grid grid-cols-1 md\\:grid-cols-4 gap-6 mb-12">
+                <div class="stat-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray text-sm">إجمالي المنتجات</p>
+                            <h3 class="text-3xl font-bold text-white" id="stat-total">0</h3>
+                        </div>
+                        <div class="feature-icon purple">
+                            <i class="fas fa-box"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray text-sm">مُنفذ مخزون</p>
+                            <h3 class="text-3xl font-bold text-danger" id="stat-low">0</h3>
+                        </div>
+                        <div class="feature-icon red">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray text-sm">في الانتظار</p>
+                            <h3 class="text-3xl font-bold text-warning" id="stat-pending">0</h3>
+                        </div>
+                        <div class="feature-icon yellow">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray text-sm">نُشرت</p>
+                            <h3 class="text-3xl font-bold text-success" id="stat-published">0</h3>
+                        </div>
+                        <div class="feature-icon green">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Scraper -->
+            <div class="card">
+                <h3 class="text-white text-xl font-bold mb-4">
+                    <i class="fas fa-spider text-primary mr-2"></i>
+                    سحب سريع من موقع
+                </h3>
+                <div class="flex gap-4 flex-col md\\:flex-row">
+                    <input type="text" id="quick-url" 
+                           placeholder="أدخل رابط المنتج أو صفحة المنتجات..." 
+                           class="form-input flex-1">
+                    <button onclick="quickScrape()" class="btn btn-primary px-6">
+                        <i class="fas fa-search mr-2"></i>سحب
+                    </button>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <span class="text-gray text-sm">المواقع المدعومة:</span>
+                    <span class="site-badge">alolastores.com</span>
+                    <span class="site-badge">infinityclinicpharma.com</span>
+                    <span class="site-badge">alabdellatif-tarshouby.com</span>
+                    <span class="site-badge">sallypharmacies.com</span>
+                    <span class="site-badge" style="color: #c084fc;">+ أي موقع Shopify</span>
+                </div>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="mt-12">
+                <h3 class="text-white text-2xl font-bold mb-6 text-center">المميزات الرئيسية</h3>
+                <div class="grid grid-cols-1 md\\:grid-cols-3 gap-6">
+                    <div class="feature-card">
+                        <div class="feature-icon purple mb-4">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h4 class="text-white font-semibold">سكرابر ذكي</h4>
+                        <p class="text-gray text-sm mt-2">يكتشف نوع الموقع تلقائياً ويسحب البيانات بدون إعدادات</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon pink mb-4">
+                            <i class="fas fa-language"></i>
+                        </div>
+                        <h4 class="text-white font-semibold">ترجمة فورية</h4>
+                        <p class="text-gray text-sm mt-2">ترجمة تلقائية للمنتجات من الإنجليزية للعربية</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon blue mb-4">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h4 class="text-white font-semibold">تخزين سحابي</h4>
+                        <p class="text-gray text-sm mt-2">رفع الصور على Cloudinary وتخزين البيانات على Firebase</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon green mb-4">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <h4 class="text-white font-semibold">حساب الأرباح</h4>
+                        <p class="text-gray text-sm mt-2">مقارنة مع سعر الشراء وحساب هامش الربح تلقائياً</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon yellow mb-4">
+                            <i class="fas fa-copy"></i>
+                        </div>
+                        <h4 class="text-white font-semibold">كشف التكرار</h4>
+                        <p class="text-gray text-sm mt-2">منع إضافة منتجات مكررة تلقائياً</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon red mb-4">
+                            <i class="fas fa-file-export"></i>
+                        </div>
+                        <h4 class="text-white font-semibold">تصدير متعدد</h4>
+                        <p class="text-gray text-sm mt-2">Excel, WooCommerce, Shopify, Google Sheets, JSON</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container text-center">
+                <p class="text-gray">
+                    WebHarvest Pro © 2024 - أداة مجانية لإدارة المنتجات
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <!-- App Scripts -->
+    <script>
+        // Configuration
+        const CONFIG = {
+            firebase: JSON.parse(localStorage.getItem('webharvest_firebase') || '{}'),
+            cloudinary: JSON.parse(localStorage.getItem('webharvest_cloudinary') || '{}')
+        };
+
+        // Initialize App
+        async function initApp() {
+            // Check if configured
+            const isConfigured = CONFIG.firebase.projectId && CONFIG.cloudinary.cloudName;
+            
+            if (!isConfigured) {
+                console.log('⚙️ First time setup needed');
+            }
+
+            // Initialize Firebase if configured
+            if (CONFIG.firebase.projectId) {
+                try {
+                    firebase.initializeApp(CONFIG.firebase);
+                    window.db = firebase.firestore();
+                    console.log('✅ Firebase connected');
+                } catch (error) {
+                    console.error('Firebase error:', error);
+                }
+            }
+
+            // Load stats
+            await loadStats();
+
+            // Hide loading, show app
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+
+            // Check online status
+            updateOnlineStatus();
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+        }
+
+        function updateOnlineStatus() {
+            const indicator = document.getElementById('offline-indicator');
+            if (!navigator.onLine) {
+                indicator.classList.remove('hidden');
+            } else {
+                indicator.classList.add('hidden');
+            }
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const saved = localStorage.getItem('webharvest_products');
+                const products = saved ? JSON.parse(saved) : [];
+                
+                const total = products.length;
+                const lowStock = products.filter(p => (p.quantity || 0) <= 5).length;
+                const pending = products.filter(p => p.status === 'pending').length;
+                const published = products.filter(p => p.status === 'published').length;
+
+                document.getElementById('stat-total').textContent = total;
+                document.getElementById('stat-low').textContent = lowStock;
+                document.getElementById('stat-pending').textContent = pending;
+                document.getElementById('stat-published').textContent = published;
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
+        }
+
+        // Quick scrape
+        function quickScrape() {
+            const url = document.getElementById('quick-url').value.trim();
+            if (!url) {
+                showToast('الرجاء إدخال رابط صحيح', 'error');
+                return;
+            }
+            window.location.href = `pages/products.html?action=scrape&url=${encodeURIComponent(url)}`;
+        }
+
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('✅ SW registered'))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
+    </script>
+</body>
+</html>

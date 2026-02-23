@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WebHarvest Pro Custom Styles */
+
+@layer components {
+  .action-card {
+    @apply bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700;
+  }
+
+  .action-card:hover {
+    @apply border-purple-500;
+  }
+
+  .action-card .icon-box {
+    @apply transition-transform duration-300;
+  }
+
+  .action-card:hover .icon-box {
+    @apply scale-110;
+  }
+
+  .icon-box {
+    @apply w-14 h-14 rounded-xl flex items-center justify-center;
+  }
+
+  .stat-card {
+    @apply bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700;
+  }
+
+  .feature-card {
+    @apply bg-slate-800/30 rounded-xl p-6 border border-slate-700/50;
+  }
+
+  .feature-icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
+  }
+
+  .site-badge {
+    @apply px-3 py-1 rounded-full text-sm;
+    background-color: #475569;
+    color: #d1d5db;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-purple-500 to-pink-500 font-semibold;
+  }
+
+  .btn-primary:hover {
+    @apply bg-gradient-to-r from-purple-600 to-pink-600;
+  }
+
+  .nav-link {
+    @apply transition;
+  }
+
+  .nav-link:hover {
+    @apply bg-slate-700;
+  }
+
+  .nav-link.active {
+    background-color: rgba(139, 92, 246, 0.2);
+    color: #c084fc;
+  }
+}
+
+@layer utilities {
+  .bg-clip-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .text-transparent {
+    color: transparent;
+  }
+}
+
+/* Offline indicator */
+.offline-indicator {
+  @apply fixed bottom-4 left-4 bg-yellow-600 text-white px-4 py-2 rounded-lg z-50;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Loading shimmer */
+.loading-shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
