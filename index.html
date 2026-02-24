@@ -446,3 +446,80 @@
     }
 })();
 </script>
+
+<script>
+// WebHarvest Pro - Product Receiver (BroadcastChannel)
+(function() {
+    // التحقق من URL parameters أولاً
+    const urlParams = new URLSearchParams(window.location.search);
+    const importData = urlParams.get('data');
+    
+    if (importData) {
+        try {
+            const decoded = decodeURIComponent(atob(importData));
+            const parsed = JSON.parse(decoded);
+            if (parsed.products && parsed.products.length > 0) {
+                showSuccess(parsed.products.length);
+                localStorage.setItem('webharvest_imported_products', JSON.stringify(parsed.products));
+            }
+        } catch (e) {
+            console.error('Error parsing import data:', e);
+        }
+    }
+    
+    // استقبال البيانات من BroadcastChannel
+    if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('webharvest_channel');
+        
+        channel.onmessage = function(event) {
+            const data = event.data;
+            
+            if (data.type === 'PRODUCTS_EXTRACTED' && data.products) {
+                showSuccess(data.products.length);
+                localStorage.setItem('webharvest_imported_products', JSON.stringify(data.products));
+                
+                // رد للـ Bookmarklet
+                channel.postMessage({ type: 'RECEIVED', count: data.products.length });
+            }
+        };
+        
+        // إرسال رسالة جاهزية
+        channel.postMessage({ type: 'READY' });
+    }
+    
+    function showSuccess(count) {
+        const toast = document.createElement('div');
+        toast.id = 'import-toast';
+        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:white;padding:25px 35px;border-radius:20px;z-index:99999;box-shadow:0 20px 60px rgba(0,0,0,0.4);font-size:20px;font-weight:bold;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;direction:rtl;animation:slideIn 0.5s ease;';
+        toast.innerHTML = `
+            <div style="display:flex;align-items:center;gap:15px;">
+                <span style="font-size:40px;">✅</span>
+                <div>
+                    <div style="font-size:24px;">تم استيراد ${count} منتج!</div>
+                    <div style="font-size:14px;opacity:0.9;margin-top:5px;">تم حفظهم في WebHarvest Pro</div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.5s ease';
+            setTimeout(() => toast.remove(), 500);
+        }, 4000);
+    }
+    
+    // إضافة CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+})();
+</script>
