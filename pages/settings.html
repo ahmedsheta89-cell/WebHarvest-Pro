@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات - WebHarvest Pro</title>
+    <link rel="stylesheet" href="../styles/main.css">
+</head>
+<body>
+    <div class="settings-page">
+        <h1>⚙️ الإعدادات</h1>
+        <p>تكوين Firebase و Cloudinary</p>
+        
+        <section class="config-section">
+            <h2>🔥 Firebase</h2>
+            <input type="text" id="fb-project" placeholder="Project ID">
+            <input type="text" id="fb-auth" placeholder="Auth Domain">
+            <input type="text" id="fb-key" placeholder="API Key">
+        </section>
+        
+        <section class="config-section">
+            <h2>☁️ Cloudinary</h2>
+            <input type="text" id="cd-name" placeholder="Cloud Name">
+            <input type="text" id="cd-preset" placeholder="Upload Preset">
+        </section>
+        
+        <button onclick="saveSettings()">💾 حفظ</button>
+    </div>
+    <script type="module">
+        import { ConfigManager } from '../src/config.js';
+        window.saveSettings = () => {
+            const config = {
+                firebase: {
+                    projectId: document.getElementById('fb-project').value,
+                    authDomain: document.getElementById('fb-auth').value,
+                    apiKey: document.getElementById('fb-key').value
+                },
+                cloudinary: {
+                    cloudName: document.getElementById('cd-name').value,
+                    uploadPreset: document.getElementById('cd-preset').value
+                }
+            };
+            ConfigManager.save(config);
+            alert('✅ تم الحفظ!');
+        };
+        ConfigManager.load();
+        document.getElementById('fb-project').value = ConfigManager.get('firebase.projectId') || '';
+        document.getElementById('fb-auth').value = ConfigManager.get('firebase.authDomain') || '';
+        document.getElementById('fb-key').value = ConfigManager.get('firebase.apiKey') || '';
+        document.getElementById('cd-name').value = ConfigManager.get('cloudinary.cloudName') || '';
+        document.getElementById('cd-preset').value = ConfigManager.get('cloudinary.uploadPreset') || '';
+    </script>
+</body>
+</html>
