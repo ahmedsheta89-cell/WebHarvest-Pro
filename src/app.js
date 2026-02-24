@@ -19,26 +19,26 @@ const AppState = {
 class App {
     constructor() {
         console.log('🚀 WebHarvest Pro starting...');
-        
-        // Initialize
         this.init();
     }
 
     async init() {
         try {
-            // Load saved products
+            // أولاً: تحميل المنتجات المحفوظة
             this.loadProducts();
             
-            // Setup UI
-            this.setupEventListeners();
-            
-            // Update stats
-            this.updateStats();
-            
-            // Check for imported products
+            // ثانياً: فحص الاستيراد من URL (قبل setupUI)
             this.checkForImports();
             
+            // ثالثاً: إعداد الواجهة
+            this.setupEventListeners();
+            
+            // رابعاً: تحديث العرض
+            this.updateStats();
+            this.renderProducts();
+            
             console.log('✅ WebHarvest Pro initialized');
+            console.log('📦 Products count:', AppState.products.length);
         } catch (error) {
             console.error('❌ Error initializing:', error);
         }
@@ -47,22 +47,20 @@ class App {
     loadProducts() {
         const saved = localStorage.getItem('webharvest_products');
         if (saved) {
-            AppState.products = JSON.parse(saved);
-            AppState.filteredProducts = [...AppState.products];
-        }
-        
-        // Also check for imported products
-        const imported = localStorage.getItem('webharvest_imported_products');
-        if (imported) {
-            const products = JSON.parse(imported);
-            AppState.products = [...AppState.products, ...products];
-            localStorage.removeItem('webharvest_imported_products');
-            this.saveProducts();
+            try {
+                AppState.products = JSON.parse(saved);
+                AppState.filteredProducts = [...AppState.products];
+                console.log('📦 Loaded', AppState.products.length, 'products from storage');
+            } catch (e) {
+                console.error('Error loading products:', e);
+                AppState.products = [];
+            }
         }
     }
 
     saveProducts() {
         localStorage.setItem('webharvest_products', JSON.stringify(AppState.products));
+        console.log('💾 Saved', AppState.products.length, 'products');
     }
 
     setupEventListeners() {
@@ -83,6 +81,14 @@ class App {
                 this.addProduct();
             });
         }
+
+        // Modal close buttons
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = e.target.closest('.modal');
+                if (modal) modal.style.display = 'none';
+            });
+        });
     }
 
     checkForImports() {
@@ -90,44 +96,56 @@ class App {
         const importData = urlParams.get('import');
 
         if (importData) {
+            console.log('📥 Import data found in URL');
             try {
                 const decoded = decodeURIComponent(atob(importData));
                 const data = JSON.parse(decoded);
+                console.log('📦 Decoded data:', data);
 
-                if (data && data.products && data.products.length > 0) {
-                    // Add products
-                    AppState.products = [...AppState.products, ...data.products];
+                if (data && data.products && Array.isArray(data.products) && data.products.length > 0) {
+                    // تنسيق المنتجات
+                    const formattedProducts = data.products.map(p => ({
+                        id: Date.now() + Math.random(),
+                        name: p.name || 'منتج بدون اسم',
+                        price: parseFloat(p.price) || 0,
+                        purchasePrice: parseFloat(p.purchasePrice) || 0,
+                        image: p.image || '',
+                        url: p.url || '',
+                        description: p.description || '',
+                        category: p.category || '',
+                        currency: p.currency || 'EGP',
+                        source: p.source || data.source || '',
+                        stock: p.stock || 0,
+                        createdAt: new Date().toISOString()
+                    }));
+
+                    // إضافة المنتجات
+                    AppState.products = [...AppState.products, ...formattedProducts];
+                    AppState.filteredProducts = [...AppState.products];
+                    
+                    // حفظ
                     this.saveProducts();
                     
-                    // Show success message
-                    this.showToast(`✅ تم استيراد ${data.products.length} منتج بنجاح!`, 'success');
+                    console.log('✅ Imported', formattedProducts.length, 'products');
                     
-                    // Update stats
-                    this.updateStats();
-                    
-                    // Render products
-                    this.renderProducts();
-                    
-                    // Clean URL
-                    const cleanUrl = window.location.href.split('?')[0];
-                    window.history.replaceState({}, document.title, cleanUrl);
-                    
-                    console.log('✅ Imported products:', data.products.length);
+                    // مسح الـ URL parameter
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, '', newUrl);
                 }
             } catch (error) {
-                console.error('Error importing products:', error);
-                this.showToast('❌ خطأ في استيراد المنتجات', 'error');
+                console.error('❌ Error importing products:', error);
             }
         }
     }
 
     addProduct() {
-        const name = document.getElementById('productName')?.value;
-        const price = parseFloat(document.getElementById('productPrice')?.value) || 0;
-        const cost = parseFloat(document.getElementById('productCost')?.value) || 0;
-        const category = document.getElementById('productCategory')?.value || '';
-        const description = document.getElementById('productDescription')?.value || '';
+        const nameInput = document.getElementById('productName');
+        const priceInput = document.getElementById('productPrice');
+        const purchaseInput = document.getElementById('productPurchasePrice');
+        const categoryInput = document.getElementById('productCategory');
+        const descInput = document.getElementById('productDescription');
 
+        const name = nameInput?.value?.trim();
         if (!name) {
             this.showToast('⚠️ اسم المنتج مطلوب', 'error');
             return;
@@ -135,58 +153,88 @@ class App {
 
         const product = {
             id: Date.now(),
-            name,
-            nameAr: name,
-            price,
-            cost,
-            category,
-            description,
-            profit: price - cost,
-            margin: cost > 0 ? ((price - cost) / price * 100).toFixed(1) : 0,
-            createdAt: new Date().toISOString(),
-            status: 'active'
+            name: name,
+            price: parseFloat(priceInput?.value) || 0,
+            purchasePrice: parseFloat(purchaseInput?.value) || 0,
+            category: categoryInput?.value || '',
+            description: descInput?.value || '',
+            image: '',
+            url: '',
+            currency: 'EGP',
+            stock: 0,
+            createdAt: new Date().toISOString()
         };
 
-        AppState.products.unshift(product);
+        AppState.products.push(product);
+        AppState.filteredProducts.push(product);
+        
         this.saveProducts();
         this.updateStats();
         this.renderProducts();
         
         // Clear form
-        document.getElementById('addProductForm')?.reset();
-        
-        // Close modal
-        this.closeModal();
+        if (nameInput) nameInput.value = '';
+        if (priceInput) priceInput.value = '';
+        if (purchaseInput) purchaseInput.value = '';
+        if (categoryInput) categoryInput.value = '';
+        if (descInput) descInput.value = '';
         
         this.showToast('✅ تم إضافة المنتج بنجاح', 'success');
     }
 
     filterProducts() {
         const query = AppState.searchQuery.toLowerCase();
-        
-        AppState.filteredProducts = AppState.products.filter(p => {
-            const name = (p.name || p.nameAr || '').toLowerCase();
-            const category = (p.category || '').toLowerCase();
-            const description = (p.description || '').toLowerCase();
-            
-            return name.includes(query) || 
-                   category.includes(query) || 
-                   description.includes(query);
-        });
-
+        AppState.filteredProducts = AppState.products.filter(p => 
+            p.name?.toLowerCase().includes(query) ||
+            p.category?.toLowerCase().includes(query) ||
+            p.description?.toLowerCase().includes(query)
+        );
         this.renderProducts();
+    }
+
+    deleteProduct(id) {
+        AppState.products = AppState.products.filter(p => p.id !== id);
+        AppState.filteredProducts = AppState.filteredProducts.filter(p => p.id !== id);
+        this.saveProducts();
+        this.updateStats();
+        this.renderProducts();
+        this.showToast('✅ تم حذف المنتج', 'success');
+    }
+
+    updateStats() {
+        const total = AppState.products.length;
+        const totalProfit = AppState.products.reduce((sum, p) => {
+            const profit = (p.price || 0) - (p.purchasePrice || 0);
+            return sum + profit;
+        }, 0);
+        const avgMargin = total > 0 
+            ? AppState.products.reduce((sum, p) => {
+                const margin = p.price > 0 ? ((p.price - (p.purchasePrice || 0)) / p.price) * 100 : 0;
+                return sum + margin;
+            }, 0) / total 
+            : 0;
+        const outOfStock = AppState.products.filter(p => (p.stock || 0) <= 0).length;
+
+        // Update DOM
+        const totalEl = document.getElementById('totalProducts');
+        const profitEl = document.getElementById('totalProfit');
+        const marginEl = document.getElementById('avgMargin');
+        const stockEl = document.getElementById('outOfStock');
+
+        if (totalEl) totalEl.textContent = total;
+        if (profitEl) profitEl.textContent = totalProfit.toLocaleString('ar-EG') + ' ج.م';
+        if (marginEl) marginEl.textContent = avgMargin.toFixed(1) + '%';
+        if (stockEl) stockEl.textContent = outOfStock;
     }
 
     renderProducts() {
         const container = document.getElementById('productsTableBody');
-        if (!container) return;
+        if (!container) {
+            console.warn('productsTableBody not found');
+            return;
+        }
 
-        const products = AppState.filteredProducts.slice(
-            (AppState.currentPage - 1) * AppState.itemsPerPage,
-            AppState.currentPage * AppState.itemsPerPage
-        );
-
-        if (products.length === 0) {
+        if (AppState.filteredProducts.length === 0) {
             container.innerHTML = `
                 <tr>
                     <td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;">
@@ -199,135 +247,66 @@ class App {
             return;
         }
 
-        container.innerHTML = products.map(p => `
-            <tr>
-                <td><input type="checkbox" class="product-checkbox" data-id="${p.id}"></td>
+        container.innerHTML = AppState.filteredProducts.map(p => `
+            <tr class="product-row" data-id="${p.id}">
                 <td>
-                    <div style="font-weight: bold;">${p.nameAr || p.name}</div>
-                    <div style="font-size: 12px; color: #94a3b8;">${p.category || ''}</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        ${p.image ? `<img src="${p.image}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px;">` : '<div style="width: 40px; height: 40px; background: #4b5563; border-radius: 8px; display: flex; align-items: center; justify-content: center;">📦</div>'}
+                        <span>${p.name}</span>
+                    </div>
                 </td>
-                <td>${p.price ? p.price + ' ج.م' : '-'}</td>
-                <td>${p.cost ? p.cost + ' ج.م' : '-'}</td>
-                <td>
-                    <span style="color: ${p.profit >= 0 ? '#10b981' : '#ef4444'}; font-weight: bold;">
-                        ${p.profit ? p.profit + ' ج.م' : '-'}
-                    </span>
+                <td>${p.price?.toLocaleString('ar-EG') || 0} ${p.currency || 'ج.م'}</td>
+                <td>${p.purchasePrice?.toLocaleString('ar-EG') || 0} ${p.currency || 'ج.م'}</td>
+                <td style="color: ${(p.price || 0) - (p.purchasePrice || 0) > 0 ? '#10b981' : '#ef4444'}">
+                    ${((p.price || 0) - (p.purchasePrice || 0))?.toLocaleString('ar-EG') || 0} ${p.currency || 'ج.م'}
                 </td>
+                <td>${p.price > 0 ? (((p.price - (p.purchasePrice || 0)) / p.price) * 100).toFixed(1) : 0}%</td>
                 <td>
-                    <span style="background: ${p.margin >= 20 ? '#10b981' : p.margin >= 10 ? '#f59e0b' : '#ef4444'}; 
-                                 color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                        ${p.margin ? p.margin + '%' : '-'}
-                    </span>
-                </td>
-                <td>
-                    <button onclick="app.deleteProduct(${p.id})" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
-                        🗑️
+                    <button class="btn-delete" onclick="app.deleteProduct(${p.id})" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                        🗑️ حذف
                     </button>
                 </td>
             </tr>
         `).join('');
     }
 
-    deleteProduct(id) {
-        if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-        
-        AppState.products = AppState.products.filter(p => p.id !== id);
-        this.saveProducts();
-        this.updateStats();
-        this.renderProducts();
-        
-        this.showToast('✅ تم حذف المنتج', 'success');
-    }
-
-    updateStats() {
-        // Update product count
-        const countEl = document.getElementById('productCount');
-        if (countEl) {
-            countEl.textContent = AppState.products.length;
-        }
-
-        // Calculate total profit
-        const totalProfit = AppState.products.reduce((sum, p) => sum + (p.profit || 0), 0);
-        const profitEl = document.getElementById('totalProfit');
-        if (profitEl) {
-            profitEl.textContent = totalProfit.toLocaleString() + ' ج.م';
-        }
-
-        // Calculate average margin
-        const avgMargin = AppState.products.length > 0 
-            ? AppState.products.reduce((sum, p) => sum + parseFloat(p.margin || 0), 0) / AppState.products.length 
-            : 0;
-        const marginEl = document.getElementById('avgMargin');
-        if (marginEl) {
-            marginEl.textContent = avgMargin.toFixed(1) + '%';
-        }
-
-        // Count out of stock
-        const outOfStock = AppState.products.filter(p => p.status === 'out_of_stock').length;
-        const outOfStockEl = document.getElementById('outOfStock');
-        if (outOfStockEl) {
-            outOfStockEl.textContent = outOfStock;
-        }
-    }
-
     showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        if (!container) {
-            // Create container if doesn't exist
-            const newContainer = document.createElement('div');
-            newContainer.id = 'toastContainer';
-            newContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
-            document.body.appendChild(newContainer);
-        }
+        // Remove existing toast
+        const existing = document.querySelector('.webharvest-toast');
+        if (existing) existing.remove();
 
+        // Create toast
         const toast = document.createElement('div');
+        toast.className = 'webharvest-toast';
         toast.style.cssText = `
-            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
-            color: white;
+            position: fixed;
+            top: 20px;
+            right: 20px;
             padding: 15px 25px;
             border-radius: 10px;
-            margin-bottom: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
+            color: white;
+            font-weight: bold;
+            z-index: 10000;
+            animation: slideIn 0.5s ease;
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
         `;
         toast.textContent = message;
-        
-        const container2 = document.getElementById('toastContainer');
-        if (container2) {
-            container2.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-    }
+        document.body.appendChild(toast);
 
-    openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) modal.classList.add('active');
-    }
-
-    closeModal(event) {
-        if (event && event.target !== event.currentTarget) return;
-        const overlay = document.getElementById('modalOverlay');
-        if (overlay) overlay.classList.remove('active');
-    }
-
-    toggleSelectAll() {
-        const selectAll = document.getElementById('selectAll');
-        const checkboxes = document.querySelectorAll('#productsTableBody input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = selectAll?.checked);
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.5s ease';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
     }
 }
 
 // Initialize app when DOM is ready
-let app;
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        app = new App();
-        window.app = app;
-    });
-} else {
-    app = new App();
-    window.app = app;
-}
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new App();
+});
 
-// Make App globally available for onclick handlers
-window.App = App;
+// Export
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { App, AppState };
+}
