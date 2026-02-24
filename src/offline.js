@@ -1,75 +1,185 @@
 /**
- * WebHarvest Pro - Offline Mode Module
- *     // Sync pending changes
-    async syncPendingChanges() {
-        if (navigator.onLine && this.pendingChanges.length > 0) {
-            this.isSyncing = true;
-            this.emit('sync:start');
+ * WebHarvest Pro - Offline Storage Module
+ * تخزين محلي للعمل بدون إنترنت
+ */
 
-            let synced = 0;
-            let failed = 0;
+// IndexedDB wrapper for offline storage
+class OfflineStorage {
+    constructor() {
+        this.dbName = 'WebHarvestDB';
+        this.dbVersion = 1;
+        this.db = null;
+    }
 
-            for (const change of this.pendingChanges) {
-                try {
-                    await this.applyChange(change);
-                    synced++;
-                    this.pendingChanges = this.pendingChanges.filter(c => c.id !== change.id);
-                } catch (error) {
-                    failed++;
-                    console.error('Sync failed for change:', change.id, error);
+    // Initialize database
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve(this.db);
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+
+                // Products store
+                if (!db.objectStoreNames.contains('products')) {
+                    const productsStore = db.createObjectStore('products', { keyPath: 'id' });
+                    productsStore.createIndex('name', 'name', { unique: false });
+                    productsStore.createIndex('category', 'category', { unique: false });
+                    productsStore.createIndex('price', 'price', { unique: false });
                 }
-            }
 
-            this.isSyncing = false;
-            this.emit('sync:end', { synced, failed });
-            this.savePendingChanges();
+                // Sync queue store
+                if (!db.objectStoreNames.contains('syncQueue')) {
+                    db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+                }
 
-            return { synced, failed };
-        }
-
-        return { synced: 0, failed: 0 };
+                // Settings store
+                if (!db.objectStoreNames.contains('settings')) {
+                    db.createObjectStore('settings', { keyPath: 'key' });
+                }
+            };
+        });
     }
 
-    // Apply a pending change
-    async applyChange(change) {
-        switch (change.type) {
-            case 'create':
-                await productManager.createProduct(change.data);
-                break;
-            case 'update':
-                await productManager.updateProduct(change.id, change.data);
-                break;
-            case 'delete':
-                await productManager.deleteProduct(change.id);
-                break;
-        }
+    // Save product
+    async saveProduct(product) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['products'], 'readwrite');
+            const store = transaction.objectStore('products');
+            const request = store.put(product);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
     }
 
-    // Events
-    on(event, callback) {
-        if (!this.eventListeners[event]) {
-            this.eventListeners[event] = [];
-        }
-        this.eventListeners[event].push(callback);
+    // Get product
+    async getProduct(id) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['products'], 'readonly');
+            const store = transaction.objectStore('products');
+            const request = store.get(id);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
     }
 
-    emit(event, data) {
-        if (this.eventListeners[event]) {
-            this.eventListeners[event].forEach(cb => cb(data));
-        }
+    // Get all products
+    async getAllProducts() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['products'], 'readonly');
+            const store = transaction.objectStore('products');
+            const request = store.getAll();
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
     }
 
-    // Get offline status
-    getStatus() {
-        return {
-            isOnline: navigator.onLine,
-            hasPendingChanges: this.pendingChanges.length > 0,
-            pendingCount: this.pendingChanges.length,
-            lastSync: this.lastSync
-        };
+    // Delete product
+    async deleteProduct(id) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['products'], 'readwrite');
+            const store = transaction.objectStore('products');
+            const request = store.delete(id);
+
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Add to sync queue
+    async addToSyncQueue(action, data) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+            const store = transaction.objectStore('syncQueue');
+            const request = store.add({
+                action,
+                data,
+                timestamp: Date.now(),
+                synced: false
+            });
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Get sync queue
+    async getSyncQueue() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['syncQueue'], 'readonly');
+            const store = transaction.objectStore('syncQueue');
+            const request = store.getAll();
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Clear sync queue
+    async clearSyncQueue() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+            const store = transaction.objectStore('syncQueue');
+            const request = store.clear();
+
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Save setting
+    async saveSetting(key, value) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['settings'], 'readwrite');
+            const store = transaction.objectStore('settings');
+            const request = store.put({ key, value });
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Get setting
+    async getSetting(key) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['settings'], 'readonly');
+            const store = transaction.objectStore('settings');
+            const request = store.get(key);
+
+            request.onsuccess = () => resolve(request.result?.value);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Check if online
+    isOnline() {
+        return navigator.onLine;
+    }
+
+    // Clear all data
+    async clearAll() {
+        const stores = ['products', 'syncQueue', 'settings'];
+        for (const storeName of stores) {
+            await new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.clear();
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+        return true;
     }
 }
 
 // Export singleton
-const offlineManager = new OfflineManager();
-export { offlineManager, OfflineManager };
+const offlineStorage = new OfflineStorage();
+export { offlineStorage, OfflineStorage };

@@ -1,244 +1,147 @@
 /**
  * WebHarvest Pro - Dashboard Module
- *     // Bind events
-        this.bindEvents();
+ * لوحة تحكم متقدمة
+ */
 
-        // Start auto-refresh
+import { productManager } from './products.js';
+
+// Dashboard Manager
+class Dashboard {
+    constructor() {
+        this.widgets = [];
+        this.refreshInterval = null;
+    }
+
+    // Initialize dashboard
+    async init() {
+        await this.loadWidgets();
         this.startAutoRefresh();
     }
 
-    // Bind events
-    bindEvents() {
-        window.addEventListener('products:updated', () => this.refresh());
-        window.addEventListener('config:updated', () => this.refresh());
+    // Load widgets
+    async loadWidgets() {
+        this.widgets = [
+            { id: 'stats', type: 'stats', title: 'إحصائيات', position: { x: 0, y: 0, w: 2, h: 1 } },
+            { id: 'recent', type: 'list', title: 'أحدث المنتجات', position: { x: 2, y: 0, w: 2, h: 2 } },
+            { id: 'chart', type: 'chart', title: 'توزيع الأسعار', position: { x: 0, y: 1, w: 2, h: 1 } }
+        ];
     }
 
-    // Start auto-refresh
-    startAutoRefresh() {
+    // Get stats
+    async getStats() {
+        const products = await productManager.getAllProducts();
+        
+        return {
+            total: products.length,
+            inStock: products.filter(p => p.stock > 0).length,
+            outOfStock: products.filter(p => p.stock === 0).length,
+            avgPrice: products.length > 0 
+                ? products.reduce((sum, p) => sum + (p.price || 0), 0) / products.length 
+                : 0,
+            totalValue: products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0)
+        };
+    }
+
+    // Get recent products
+    async getRecentProducts(limit = 10) {
+        const products = await productManager.getAllProducts();
+        return products
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, limit);
+    }
+
+    // Get price distribution
+    async getPriceDistribution() {
+        const products = await productManager.getAllProducts();
+        const ranges = [
+            { label: '0-100', min: 0, max: 100, count: 0 },
+            { label: '100-500', min: 100, max: 500, count: 0 },
+            { label: '500-1000', min: 500, max: 1000, count: 0 },
+            { label: '1000+', min: 1000, max: Infinity, count: 0 }
+        ];
+
+        products.forEach(p => {
+            const price = p.price || 0;
+            for (const range of ranges) {
+                if (price >= range.min && price < range.max) {
+                    range.count++;
+                    break;
+                }
+            }
+        });
+
+        return ranges;
+    }
+
+    // Start auto refresh
+    startAutoRefresh(intervalMs = 60000) {
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
         }
-        this.refreshInterval = setInterval(() => {
-            this.refresh();
-        }, 60000); // Every minute
+        this.refreshInterval = setInterval(() => this.refresh(), intervalMs);
+    }
+
+    // Stop auto refresh
+    stopAutoRefresh() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
     }
 
     // Refresh dashboard
     async refresh() {
-        if (!this.container) return;
-
-        const products = await productManager.getAllProducts();
-        const report = analytics.generateReport(products);
-
-        this.render(report);
-    }
-
-    // Render dashboard
-    render(report) {
-        if (!this.container) return;
-
-        this.container.innerHTML = `
-            <div class="dashboard">
-                ${this.renderSummaryCards(report.summary)}
-                ${this.renderCharts(report)}
-                ${this.renderTables(report)}
-            </div>
-        `;
-
-        this.initCharts(report);
-    }
-
-    // Render summary cards
-    renderSummaryCards(summary) {
-        return `
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <div class="card-icon bg-primary">
-                        <i class="fas fa-box"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value">${summary.totalProducts}</div>
-                        <div class="card-label">Total Products</div>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="card-icon bg-success">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value">${summary.published}</div>
-                        <div class="card-label">Published</div>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="card-icon bg-warning">
-                        <i class="fas fa-edit"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value">${summary.draft}</div>
-                        <div class="card-label">Draft</div>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="card-icon bg-danger">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value">${summary.outOfStock}</div>
-                        <div class="card-label">Out of Stock</div>
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="card-icon bg-info">
-                        <i class="fas fa-pound-sign"></i>
-                    </div>
-                    <div class="card-content">
-                        <div class="card-value">${summary.totalProfit}</div>
-                        <div class="card-label">Total Profit</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Render charts placeholder
-    renderCharts(report) {
-        return `
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Categories Distribution</h3>
-                    <canvas id="categoryChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Profit Margin Distribution</h3>
-                    <canvas id="marginChart"></canvas>
-                </div>
-            </div>
-        `;
-    }
-
-    // Render tables
-    renderTables(report) {
-        return `
-            <div class="tables-row">
-                <div class="table-container">
-                    <h3>Top Profit Products</h3>
-                    ${this.renderTopProductsTable(report.topProducts)}
-                </div>
-                <div class="table-container">
-                    <h3>Low Stock Alert</h3>
-                    ${this.renderLowStockTable(report.lowStock)}
-                </div>
-            </div>
-        `;
-    }
-
-    // Render top products table
-    renderTopProductsTable(products) {
-        if (!products.length) {
-            return '<p class="no-data">No data</p>';
-        }
-
-        return `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Profit</th>
-                        <th>Margin</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${products.map(p => `
-                        <tr>
-                            <td>${p.nameAr || p.name}</td>
-                            <td class="text-success">${p.profit}</td>
-                            <td>${p.profitMargin}%</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
-    }
-
-    // Render low stock table
-    renderLowStockTable(products) {
-        if (!products.length) {
-            return '<p class="no-data">All products in stock</p>';
-        }
-
-        return `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Stock</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${products.map(p => `
-                        <tr>
-                            <td>${p.nameAr || p.name}</td>
-                            <td class="text-warning">${p.stock}</td>
-                            <td><button class="btn btn-sm btn-primary">Restock</button></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
-    }
-
-    // Initialize charts
-    async initCharts(report) {
-        // Load Chart.js
-        await this.loadChartJS();
-
-        // Category chart
-        const categoryCtx = document.getElementById('categoryChart');
-        if (categoryCtx) {
-            new Chart(categoryCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(report.categoryBreakdown),
-                    datasets: [{
-                        data: Object.values(report.categoryBreakdown),
-                        backgroundColor: this.colors
-                    }]
-                }
-            });
-        }
-
-        // Margin chart
-        const marginCtx = document.getElementById('marginChart');
-        if (marginCtx) {
-            new Chart(marginCtx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(report.marginDistribution),
-                    datasets: [{
-                        label: 'Products',
-                        data: Object.values(report.marginDistribution),
-                        backgroundColor: this.colors[0]
-                    }]
-                }
-            });
-        }
-    }
-
-    // Load Chart.js
-    loadChartJS() {
-        return new Promise((resolve, reject) => {
-            if (window.Chart) {
-                resolve();
-                return;
-            }
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
+        const event = new CustomEvent('dashboard-refresh', { 
+            detail: await this.getStats() 
         });
+        window.dispatchEvent(event);
+    }
+
+    // Render widget
+    renderWidget(widgetId) {
+        const widget = this.widgets.find(w => w.id === widgetId);
+        if (!widget) return null;
+
+        switch (widget.type) {
+            case 'stats':
+                return this.renderStatsWidget(widget);
+            case 'list':
+                return this.renderListWidget(widget);
+            case 'chart':
+                return this.renderChartWidget(widget);
+            default:
+                return null;
+        }
+    }
+
+    // Render stats widget
+    renderStatsWidget(widget) {
+        return {
+            id: widget.id,
+            title: widget.title,
+            type: 'stats',
+            position: widget.position
+        };
+    }
+
+    // Render list widget
+    renderListWidget(widget) {
+        return {
+            id: widget.id,
+            title: widget.title,
+            type: 'list',
+            position: widget.position
+        };
+    }
+
+    // Render chart widget
+    renderChartWidget(widget) {
+        return {
+            id: widget.id,
+            title: widget.title,
+            type: 'chart',
+            position: widget.position
+        };
     }
 }
 
