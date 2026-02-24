@@ -403,3 +403,46 @@
     </script>
 </body>
 </html>
+
+<script>
+// WebHarvest Pro - Product Receiver
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const importId = urlParams.get('import');
+    
+    if (importId) {
+        const storageKey = 'webharvest_products_data';
+        const data = localStorage.getItem(storageKey);
+        
+        if (data) {
+            try {
+                const parsed = JSON.parse(data);
+                
+                if (parsed.products && parsed.products.length > 0) {
+                    // عرض رسالة نجاح
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:20px;border-radius:15px;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,0.3);font-size:18px;';
+                    toast.innerHTML = `✅ تم استيراد ${parsed.products.length} منتج بنجاح!`;
+                    document.body.appendChild(toast);
+                    
+                    // تخزين المنتجات
+                    localStorage.setItem('webharvest_imported_products', JSON.stringify(parsed.products));
+                    
+                    // إزالة الرسالة بعد 3 ثواني
+                    setTimeout(() => toast.remove(), 3000);
+                    
+                    // مسح البيانات المستوردة
+                    localStorage.removeItem(storageKey);
+                    
+                    // تحديث الصفحة
+                    if (window.location.hash === '#products') {
+                        window.location.reload();
+                    }
+                }
+            } catch (e) {
+                console.error('Error importing products:', e);
+            }
+        }
+    }
+})();
+</script>
