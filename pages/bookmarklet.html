@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebHarvest Pro - Bookmarklet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0f0f1a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #6366f1;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+        }
+
+        .step {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #2a2a4e;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: #6366f1;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            margin-left: 16px;
+        }
+
+        .step h3 {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            color: #fff;
+        }
+
+        .step p {
+            color: #a0a0a0;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+
+        .bookmarklet-box {
+            background: #16213e;
+            border: 2px dashed #6366f1;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .bookmarklet-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: grab;
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .bookmarklet-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .code-box {
+            background: #0d0d1a;
+            border-radius: 12px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            color: #a0a0a0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #16213e;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .feature-icon {
+            font-size: 24px;
+        }
+
+        .warning {
+            background: #7c2d12;
+            border: 1px solid #f97316;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .warning h4 {
+            color: #f97316;
+            margin-bottom: 8px;
+        }
+
+        .video-container {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #6366f1;
+            text-decoration: none;
+            margin-bottom: 24px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← العودة للرئيسية</a>
+        
+        <h1>🔗 WebHarvest Bookmarklet</h1>
+        
+        <div class="step">
+            <h3><span class="step-number">1</span> ما هو Bookmarklet؟</h3>
+            <p>Bookmarklet هو زر صغير في متصفحك يمكنك الضغط عليه لسحب بيانات أي منتج من أي موقع مباشرة!</p>
+            <p>لا حاجة لتثبيت أي برنامج - مجرد سحب وإفلات الزر.</p>
+            
+            <div class="feature">
+                <span class="feature-icon">📦</span>
+                <span>استخراج الاسم والسعر والوصف تلقائياً</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">🖼️</span>
+                <span>سحب كل صور المنتج بجودة عالية</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">📤</span>
+                <span>إرسال مباشر لـ WebHarvest Pro</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">⚡</span>
+                <span>سريع - لا حاجة لنسخ ولصق</span>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">2</span> التثبيت - اسحب الزر!</h3>
+            <p>اسحب الزر التالي إلى شريط المفضلة في متصفحك:</p>
+            
+            <div class="bookmarklet-box">
+                <a href="javascript:(function(){var s=document.createElement('script');s.src='https://ahmedsheta89-cell.github.io/WebHarvest-Pro/src/bookmarklet.js';document.body.appendChild(s);})();" 
+                   class="bookmarklet-btn"
+                   onclick="alert('اسحب هذا الزر إلى شريط المفضلة!'); return false;">
+                    🛒 استخراج منتج
+                </a>
+            </div>
+            
+            <p><strong>أو أضف الكود يدوياً:</strong></p>
+            <div class="code-box">
+javascript:(function(){var s=document.createElement('script');s.src='https://ahmedsheta89-cell.github.io/WebHarvest-Pro/src/bookmarklet.js';document.body.appendChild(s);})();
+            </div>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">3</span> كيفية الاستخدام</h3>
+            <p><strong>الخطوة 1:</strong> افتح صفحة منتج على أي موقع (Amazon, Jumia, Noon, إلخ)</p>
+            <p><strong>الخطوة 2:</strong> اضغط على زر "استخراج منتج" في شريط المفضلة</p>
+            <p><strong>الخطوة 3:</strong> راجع البيانات المستخرجة</p>
+            <p><strong>الخطوة 4:</strong> اضغط "إرسال لـ WebHarvest"</p>
+            
+            <div class="video-container">
+                <p>🎥 <strong>فيديو توضيحي قريباً</strong></p>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">4</span> المواقع المدعومة</h3>
+            <p>يعمل على جميع مواقع التجارة الإلكترونية:</p>
+            
+            <div class="feature"><span class="feature-icon">🇪🇬</span><span>مواقع مصرية: Jumia Egypt, Noon Egypt, Amazon Egypt</span></div>
+            <div class="feature"><span class="feature-icon">🌍</span><span>مواقع عالمية: Amazon, eBay, AliExpress, Shein</span></div>
+            <div class="feature"><span class="feature-icon">🏪</span><span>متاجر Shopify و WooCommerce</span></div>
+            <div class="feature"><span class="feature-icon">✨</span><span>أي موقع تجارة إلكترونية!</span></div>
+        </div>
+
+        <div class="warning">
+            <h4>⚠️ ملاحظات هامة</h4>
+            <ul style="margin-right: 20px; line-height: 2;">
+                <li>تأكد من أنك مسجل دخول في الموقع إذا كان المنتج يتطلب ذلك</li>
+                <li>بعض المواقع قد تمنع استخراج الصور - جرب تحديث الصفحة</li>
+                <li>البيانات تُحفظ محلياً في متصفحك فقط</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <h3><span class="step-number">5</span> المشاكل الشائعة</h3>
+            
+            <p><strong>❓ لا تظهر الصور:</strong></p>
+            <p style="margin-right: 20px;">جرب تحديث الصفحة أو التمرير لأسفل لتحميل الصور</p>
+            
+            <p><strong>❓ السعر غير صحيح:</strong></p>
+            <p style="margin-right: 20px;">بعض المواقع تعرض الأسعار بطرق مختلفة - يمكنك تعديله يدوياً</p>
+            
+            <p><strong>❓ لا يعمل على موقع معين:</strong></p>
+            <p style="margin-right: 20px;">أخبرنا عن الموقع وسنضيف دعمه!</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="../index.html" style="
+                display: inline-block;
+                background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                color: white;
+                padding: 16px 32px;
+                border-radius: 12px;
+                text-decoration: none;
+                font-weight: bold;
+            ">← العودة لـ WebHarvest Pro</a>
+        </div>
+    </div>
+</body>
+</html>
