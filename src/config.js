@@ -1,9 +1,10 @@
 /**
  * WebHarvest Pro - Configuration Module
- * إعدادات Firebase + Cloudinary + السكرابر
+ * إعدادات قابلة للتعديل من الواجهة
  */
 
-const CONFIG = {
+// Default Configuration
+const DEFAULT_CONFIG = {
     // Firebase Configuration
     firebase: {
         apiKey: "",
@@ -11,154 +12,177 @@ const CONFIG = {
         projectId: "",
         storageBucket: "",
         messagingSenderId: "",
-        appId: "",
-        databaseURL: ""
+        appId: ""
     },
 
     // Cloudinary Configuration
     cloudinary: {
         cloudName: "",
-        apiKey: "",
-        uploadPreset: "",
-        folder: "webharvest-products"
+        uploadPreset: ""
     },
 
-    // Scraper Settings
-    scraper: {
-        timeout: 30000,
-        retries: 3,
-        delay: 1000,
-        maxProducts: 500,
-        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        concurrency: 5
-    },
-
-    // Image Settings
-    images: {
-        maxWidth: 1200,
-        maxHeight: 1200,
-        quality: 85,
-        format: "webp",
-        removeBackground: false,
-        preferredSource: "first" // first, largest, best
-    },
-
-    // Price Rules
+    // Pricing Settings
     pricing: {
-        profitMargin: 20, // percentage
-        minProfit: 5, // minimum profit
-        rounding: 0.99, // price ending (e.g., 99.99)
+        profitMargin: 25,
+        minProfit: 10,
         currency: "EGP",
         exchangeRate: 1
     },
 
+    // Scraping Settings
+    scraping: {
+        delay: 1000,
+        timeout: 30000,
+        retries: 3,
+        concurrency: 5
+    },
+
     // Categories
-    categories: [
-        { id: "skincare", name: "بشرة وعناية", icon: "🧴" },
-        { id: "hair", name: "شعر", icon: "💇" },
-        { id: "baby", name: "أطفال", icon: "👶" },
-        { id: "vitamins", name: "فيتامينات ومعادن", icon: "💊" },
-        { id: "devices", name: "أجهزة طبية", icon: "🏥" },
-        { id: "medicine", name: "أدوية", icon: "💉" }
-    ],
-
-    // Reference Websites
-    websites: [
-        { url: "alolastores.com", name: "Alola Stores", type: "shopify" },
-        { url: "infinityclinicpharma.com", name: "Infinity Clinic Pharma", type: "shopify" },
-        { url: "alabdellatif-tarshouby.com", name: "Al-Abdellatif Tarshouby", type: "react" },
-        { url: "sallypharmacies.com", name: "Sally Pharmacies", type: "react" }
-    ],
-
-    // Export Templates
-    export: {
-        excel: true,
-        wooCommerce: true,
-        shopify: true,
-        googleSheets: true,
-        json: true,
-        saleZone: true
+    categories: {
+        'skincare': { ar: 'العناية بالبشرة', icon: '🧴' },
+        'hair': { ar: 'العناية بالشعر', icon: '💇' },
+        'health': { ar: 'صحة', icon: '💊' },
+        'makeup': { ar: 'مكياج', icon: '💄' },
+        'perfume': { ar: 'عطور', icon: '🌸' },
+        'personal-care': { ar: 'عناية شخصية', icon: '🧼' },
+        'baby': { ar: 'أطفال', icon: '👶' },
+        'men': { ar: 'رجالي', icon: '👔' },
+        'electronics': { ar: 'إلكترونيات', icon: '📱' },
+        'fashion': { ar: 'ملابس', icon: '👗' },
+        'home': { ar: 'منزل', icon: '🏠' },
+        'sports': { ar: 'رياضة', icon: '⚽' },
+        'books': { ar: 'كتب', icon: '📚' },
+        'toys': { ar: 'ألعاب', icon: '🎮' },
+        'food': { ar: 'طعام', icon: '🍔' },
+        'automotive': { ar: 'سيارات', icon: '🚗' }
     },
 
-    // Translation
-    translation: {
-        sourceLang: "en",
-        targetLang: "ar",
-        provider: "google" // google, libre
-    },
-
-    // Store Info
-    store: {
-        name: "Sale Zone Store",
-        url: "https://sale-zone.github.io/store/",
-        currency: "EGP",
-        language: "ar"
-    },
-
-    // Alerts
-    alerts: {
-        lowStock: 10,
-        priceChange: 5, // percentage
-        newProducts: true,
-        errors: true
-    },
-
-    // Sync Settings
-    sync: {
-        autoSync: false,
-        interval: 60, // minutes
-        lastSync: null
+    // UI Settings
+    ui: {
+        theme: 'dark',
+        language: 'ar',
+        rtl: true,
+        animations: true
     }
 };
 
-// Get/Set Configuration
-const ConfigManager = {
-    get(key) {
-        const keys = key.split('.');
-        let value = CONFIG;
-        for (const k of keys) {
-            value = value?.[k];
+// Config Manager - للتحكم من الواجهة
+class ConfigManager {
+    constructor() {
+        this.storageKey = 'webharvest_config';
+        this.config = this.load();
+    }
+
+    // Load config from localStorage
+    load() {
+        try {
+            const saved = localStorage.getItem(this.storageKey);
+            if (saved) {
+                return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+            }
+        } catch (e) {
+            console.error('Error loading config:', e);
+        }
+        return { ...DEFAULT_CONFIG };
+    }
+
+    // Save config to localStorage
+    save(config) {
+        try {
+            this.config = { ...this.config, ...config };
+            localStorage.setItem(this.storageKey, JSON.stringify(this.config));
+            return true;
+        } catch (e) {
+            console.error('Error saving config:', e);
+            return false;
+        }
+    }
+
+    // Get specific setting
+    get(path) {
+        const keys = path.split('.');
+        let value = this.config;
+        for (const key of keys) {
+            value = value?.[key];
         }
         return value;
-    },
+    }
 
-    set(key, value) {
-        const keys = key.split('.');
-        let obj = CONFIG;
+    // Set specific setting
+    set(path, value) {
+        const keys = path.split('.');
+        let obj = this.config;
         for (let i = 0; i < keys.length - 1; i++) {
+            if (!obj[keys[i]]) obj[keys[i]] = {};
             obj = obj[keys[i]];
         }
         obj[keys[keys.length - 1]] = value;
-        this.save();
-    },
+        this.save(this.config);
+    }
 
-    save() {
-        localStorage.setItem('webharvest_config', JSON.stringify(CONFIG));
-    },
-
-    load() {
-        const saved = localStorage.getItem('webharvest_config');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            Object.assign(CONFIG, parsed);
-        }
-        return CONFIG;
-    },
-
+    // Reset to defaults
     reset() {
-        localStorage.removeItem('webharvest_config');
-        location.reload();
-    },
+        this.config = { ...DEFAULT_CONFIG };
+        localStorage.removeItem(this.storageKey);
+        return this.config;
+    }
 
+    // Export config
+    export() {
+        return JSON.stringify(this.config, null, 2);
+    }
+
+    // Import config
+    import(jsonString) {
+        try {
+            const config = JSON.parse(jsonString);
+            this.save(config);
+            return true;
+        } catch (e) {
+            console.error('Error importing config:', e);
+            return false;
+        }
+    }
+
+    // Validate config
     validate() {
         const errors = [];
-        if (!CONFIG.firebase.projectId) errors.push('Firebase Project ID مطلوب');
-        if (!CONFIG.cloudinary.cloudName) errors.push('Cloudinary Cloud Name مطلوب');
-        return errors;
+        const firebase = this.config.firebase;
+        const cloudinary = this.config.cloudinary;
+
+        if (!firebase.projectId) {
+            errors.push({ field: 'firebase.projectId', message: 'Firebase Project ID مطلوب' });
+        }
+        if (!cloudinary.cloudName) {
+            errors.push({ field: 'cloudinary.cloudName', message: 'Cloudinary Cloud Name مطلوب' });
+        }
+        if (!cloudinary.uploadPreset) {
+            errors.push({ field: 'cloudinary.uploadPreset', message: 'Cloudinary Upload Preset مطلوب' });
+        }
+
+        return {
+            valid: errors.length === 0,
+            errors: errors
+        };
     }
-};
+
+    // Check if configured
+    isConfigured() {
+        return this.config.firebase.projectId && 
+               this.config.cloudinary.cloudName && 
+               this.config.cloudinary.uploadPreset;
+    }
+}
+
+// Create singleton
+const configManager = new ConfigManager();
+const CONFIG = configManager.config;
 
 // Initialize on load
-ConfigManager.load();
+if (typeof window !== 'undefined') {
+    window.ConfigManager = ConfigManager;
+    window.configManager = configManager;
+    window.CONFIG = CONFIG;
+}
 
-export { CONFIG, ConfigManager };
+export { CONFIG, DEFAULT_CONFIG, ConfigManager, configManager };
