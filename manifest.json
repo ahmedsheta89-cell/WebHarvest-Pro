@@ -6,67 +6,18 @@
     "display": "standalone",
     "background_color": "#0f172a",
     "theme_color": "#6366f1",
-    "orientation": "any",
     "lang": "ar",
     "dir": "rtl",
     "icons": [
         {
-            "src": "assets/icons/icon-72.png",
-            "sizes": "72x72",
-            "type": "image/png"
-        },
-        {
-            "src": "assets/icons/icon-96.png",
-            "sizes": "96x96",
-            "type": "image/png"
-        },
-        {
-            "src": "assets/icons/icon-128.png",
-            "sizes": "128x128",
-            "type": "image/png"
-        },
-        {
-            "src": "assets/icons/icon-144.png",
-            "sizes": "144x144",
-            "type": "image/png"
-        },
-        {
-            "src": "assets/icons/icon-152.png",
-            "sizes": "152x152",
-            "type": "image/png"
-        },
-        {
-            "src": "assets/icons/icon-192.png",
+            "src": "assets/icons/icon-192.svg",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/svg+xml"
         },
         {
-            "src": "assets/icons/icon-384.png",
-            "sizes": "384x384",
-            "type": "image/png"
-        },
-        {
-            "src": "assets/icons/icon-512.png",
+            "src": "assets/icons/icon-192.svg",
             "sizes": "512x512",
-            "type": "image/png"
-        }
-    ],
-    "categories": ["business", "productivity", "utilities"],
-    "screenshots": [],
-    "shortcuts": [
-        {
-            "name": "إضافة منتج",
-            "short_name": "إضافة",
-            "description": "إضافة منتج جديد",
-            "url": "/?action=add",
-            "icons": [{ "src": "assets/icons/add.png", "sizes": "96x96" }]
-        },
-        {
-            "name": "سحب من موقع",
-            "short_name": "سحب",
-            "description": "سحب منتج من موقع",
-            "url": "/?action=scrape",
-            "icons": [{ "src": "assets/icons/scrape.png", "sizes": "96x96" }]
+            "type": "image/svg+xml"
         }
     ]
 }
