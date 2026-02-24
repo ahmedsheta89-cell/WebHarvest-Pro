@@ -1,382 +1,313 @@
 /**
  * WebHarvest Pro - Main Application
+ * تطبيق إدارة المنتجات
  */
 
-import { CONFIG, configManager } from './config.js';
-
-// Application State
+// ==================== Global State ====================
 const AppState = {
     products: [],
-    currentProduct: null,
-    settings: {},
-    isLoading: false,
-    currentPage: 'home'
+    filteredProducts: [],
+    currentPage: 1,
+    itemsPerPage: 20,
+    selectedProducts: [],
+    sortBy: 'name',
+    sortOrder: 'asc',
+    searchQuery: ''
 };
 
-// Main Application
+// ==================== Main Application ====================
 class App {
     constructor() {
+        console.log('🚀 WebHarvest Pro starting...');
+        
+        // Initialize
         this.init();
     }
 
     async init() {
-        console.log('🚀 WebHarvest Pro starting...');
-        
-        // Load settings from configManager (it's already loaded)
-        AppState.settings = configManager.config;
-        
-        // Load products
-        this.loadProducts();
-        
-        // Setup UI
-        this.setupEventListeners();
-        this.updateStats();
-        
-        console.log('✅ WebHarvest Pro ready!');
-    }
-
-    setupEventListeners() {
-        // Navigation
-        document.querySelectorAll('.nav-link[data-page]').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showPage(link.dataset.page);
-            });
-        });
-
-        // Price inputs
-        ['purchasePrice', 'marketPrice'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener('input', () => this.calculateProfit());
-        });
-
-        // Modal close
-        const overlay = document.getElementById('modalOverlay');
-        if (overlay) overlay.addEventListener('click', (e) => this.closeModal(e));
-    }
-
-    showPage(pageName) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        const page = document.getElementById(`${pageName}Page`);
-        if (page) page.classList.add('active');
-
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.toggle('active', link.dataset.page === pageName);
-        });
-
-        AppState.currentPage = pageName;
-
-        if (pageName === 'products') this.renderProducts();
-        if (pageName === 'reports') this.renderReports();
+        try {
+            // Load saved products
+            this.loadProducts();
+            
+            // Setup UI
+            this.setupEventListeners();
+            
+            // Update stats
+            this.updateStats();
+            
+            // Check for imported products
+            this.checkForImports();
+            
+            console.log('✅ WebHarvest Pro initialized');
+        } catch (error) {
+            console.error('❌ Error initializing:', error);
+        }
     }
 
     loadProducts() {
-        try {
-            const saved = localStorage.getItem('webharvest_products');
-            AppState.products = saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            AppState.products = [];
+        const saved = localStorage.getItem('webharvest_products');
+        if (saved) {
+            AppState.products = JSON.parse(saved);
+            AppState.filteredProducts = [...AppState.products];
+        }
+        
+        // Also check for imported products
+        const imported = localStorage.getItem('webharvest_imported_products');
+        if (imported) {
+            const products = JSON.parse(imported);
+            AppState.products = [...AppState.products, ...products];
+            localStorage.removeItem('webharvest_imported_products');
+            this.saveProducts();
         }
     }
 
     saveProducts() {
         localStorage.setItem('webharvest_products', JSON.stringify(AppState.products));
-        this.updateStats();
     }
 
-    async scrapeProduct() {
-        const url = document.getElementById('productUrl')?.value?.trim();
-        if (!url) {
-            this.showToast('أدخل رابط المنتج', 'warning');
-            return;
+    setupEventListeners() {
+        // Search
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                AppState.searchQuery = e.target.value;
+                this.filterProducts();
+            });
         }
 
-        try {
-            this.showProgress('جاري السحب...');
-            
-            // Simple fetch for demo
-            const product = {
-                id: Date.now(),
-                url: url,
-                name: 'منتج جديد',
-                description: 'وصف المنتج',
-                price: 0,
-                purchasePrice: 0,
-                marketPrice: 0,
-                category: 'other',
-                stock: 1,
-                images: [],
-                createdAt: new Date().toISOString()
-            };
-
-            this.showProductPreview(product);
-            this.showToast('تم سحب البيانات', 'success');
-        } catch (error) {
-            this.showToast(`خطأ: ${error.message}`, 'error');
-        } finally {
-            this.hideProgress();
+        // Add product form
+        const addForm = document.getElementById('addProductForm');
+        if (addForm) {
+            addForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.addProduct();
+            });
         }
     }
 
-    showProductPreview(product) {
-        AppState.currentProduct = product;
-        
-        const preview = document.getElementById('productPreview');
-        if (preview) preview.style.display = 'block';
+    checkForImports() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const importData = urlParams.get('import');
 
-        document.getElementById('productName').value = product.name || '';
-        document.getElementById('productDesc').value = product.description || '';
-        document.getElementById('marketPrice').value = product.price || '';
-        document.getElementById('purchasePrice').value = product.purchasePrice || '';
-        
-        this.calculateProfit();
-    }
+        if (importData) {
+            try {
+                const decoded = decodeURIComponent(atob(importData));
+                const data = JSON.parse(decoded);
 
-    calculateProfit() {
-        const purchase = parseFloat(document.getElementById('purchasePrice')?.value) || 0;
-        const market = parseFloat(document.getElementById('marketPrice')?.value) || 0;
-        const profit = market - purchase;
-        const margin = purchase > 0 ? ((profit / purchase) * 100).toFixed(1) : 0;
-
-        const profitEl = document.getElementById('profitAmount');
-        const marginEl = document.getElementById('profitMargin');
-        const statusEl = document.getElementById('profitStatus');
-
-        if (profitEl) profitEl.textContent = profit.toFixed(2) + ' ج';
-        if (marginEl) marginEl.textContent = margin + '%';
-        
-        if (statusEl) {
-            if (profit > 0) {
-                statusEl.textContent = '✅ ربح';
-                statusEl.className = 'profit-status positive';
-            } else if (profit < 0) {
-                statusEl.textContent = '❌ خسارة';
-                statusEl.className = 'profit-status negative';
-            } else {
-                statusEl.textContent = '➖ تعادل';
-                statusEl.className = 'profit-status neutral';
+                if (data && data.products && data.products.length > 0) {
+                    // Add products
+                    AppState.products = [...AppState.products, ...data.products];
+                    this.saveProducts();
+                    
+                    // Show success message
+                    this.showToast(`✅ تم استيراد ${data.products.length} منتج بنجاح!`, 'success');
+                    
+                    // Update stats
+                    this.updateStats();
+                    
+                    // Render products
+                    this.renderProducts();
+                    
+                    // Clean URL
+                    const cleanUrl = window.location.href.split('?')[0];
+                    window.history.replaceState({}, document.title, cleanUrl);
+                    
+                    console.log('✅ Imported products:', data.products.length);
+                }
+            } catch (error) {
+                console.error('Error importing products:', error);
+                this.showToast('❌ خطأ في استيراد المنتجات', 'error');
             }
         }
     }
 
-    saveProduct() {
-        if (!AppState.currentProduct) {
-            AppState.currentProduct = { id: Date.now() };
+    addProduct() {
+        const name = document.getElementById('productName')?.value;
+        const price = parseFloat(document.getElementById('productPrice')?.value) || 0;
+        const cost = parseFloat(document.getElementById('productCost')?.value) || 0;
+        const category = document.getElementById('productCategory')?.value || '';
+        const description = document.getElementById('productDescription')?.value || '';
+
+        if (!name) {
+            this.showToast('⚠️ اسم المنتج مطلوب', 'error');
+            return;
         }
 
-        AppState.currentProduct = {
-            ...AppState.currentProduct,
-            name: document.getElementById('productName')?.value || '',
-            description: document.getElementById('productDesc')?.value || '',
-            purchasePrice: parseFloat(document.getElementById('purchasePrice')?.value) || 0,
-            marketPrice: parseFloat(document.getElementById('marketPrice')?.value) || 0,
-            category: document.getElementById('productCategory')?.value || 'other',
-            stock: parseInt(document.getElementById('productStock')?.value) || 1,
-            updatedAt: new Date().toISOString()
+        const product = {
+            id: Date.now(),
+            name,
+            nameAr: name,
+            price,
+            cost,
+            category,
+            description,
+            profit: price - cost,
+            margin: cost > 0 ? ((price - cost) / price * 100).toFixed(1) : 0,
+            createdAt: new Date().toISOString(),
+            status: 'active'
         };
 
-        // Check if new or update
-        const existingIndex = AppState.products.findIndex(p => p.id === AppState.currentProduct.id);
-        if (existingIndex >= 0) {
-            AppState.products[existingIndex] = AppState.currentProduct;
-        } else {
-            AppState.products.push(AppState.currentProduct);
-        }
-
+        AppState.products.unshift(product);
         this.saveProducts();
-        this.showToast('تم حفظ المنتج', 'success');
-        this.clearForm();
+        this.updateStats();
+        this.renderProducts();
+        
+        // Clear form
+        document.getElementById('addProductForm')?.reset();
+        
+        // Close modal
+        this.closeModal();
+        
+        this.showToast('✅ تم إضافة المنتج بنجاح', 'success');
     }
 
-    clearForm() {
-        document.getElementById('productUrl').value = '';
-        document.getElementById('productName').value = '';
-        document.getElementById('productDesc').value = '';
-        document.getElementById('marketPrice').value = '';
-        document.getElementById('purchasePrice').value = '';
-        document.getElementById('productCategory').value = '';
-        document.getElementById('productStock').value = '1';
+    filterProducts() {
+        const query = AppState.searchQuery.toLowerCase();
         
-        const preview = document.getElementById('productPreview');
-        if (preview) preview.style.display = 'none';
-        
-        AppState.currentProduct = null;
-        this.calculateProfit();
+        AppState.filteredProducts = AppState.products.filter(p => {
+            const name = (p.name || p.nameAr || '').toLowerCase();
+            const category = (p.category || '').toLowerCase();
+            const description = (p.description || '').toLowerCase();
+            
+            return name.includes(query) || 
+                   category.includes(query) || 
+                   description.includes(query);
+        });
+
+        this.renderProducts();
     }
 
     renderProducts() {
-        const tbody = document.getElementById('productsTableBody');
-        if (!tbody) return;
+        const container = document.getElementById('productsTableBody');
+        if (!container) return;
 
-        if (AppState.products.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">لا توجد منتجات</td></tr>';
-            return;
-        }
+        const products = AppState.filteredProducts.slice(
+            (AppState.currentPage - 1) * AppState.itemsPerPage,
+            AppState.currentPage * AppState.itemsPerPage
+        );
 
-        tbody.innerHTML = AppState.products.map(p => {
-            const profit = p.marketPrice - p.purchasePrice;
-            const margin = p.purchasePrice > 0 ? ((profit / p.purchasePrice) * 100).toFixed(0) : 0;
-            
-            return `
+        if (products.length === 0) {
+            container.innerHTML = `
                 <tr>
-                    <td><input type="checkbox" data-id="${p.id}"></td>
-                    <td>${p.name}</td>
-                    <td>${p.purchasePrice.toFixed(2)} ج</td>
-                    <td>${p.marketPrice.toFixed(2)} ج</td>
-                    <td class="${profit >= 0 ? 'text-success' : 'text-danger'}">${profit.toFixed(2)} ج</td>
-                    <td>${margin}%</td>
-                    <td>
-                        <button onclick="app.editProduct(${p.id})" class="btn-sm">✏️</button>
-                        <button onclick="app.deleteProduct(${p.id})" class="btn-sm danger">🗑️</button>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📦</div>
+                        <div>لا توجد منتجات</div>
+                        <div style="font-size: 14px; margin-top: 5px;">أضف منتجات جديدة أو استخدم الـ Bookmarklet</div>
                     </td>
                 </tr>
             `;
-        }).join('');
-    }
-
-    getCategoryName(cat) {
-        const categories = {
-            'skincare': 'العناية بالبشرة',
-            'hair': 'العناية بالشعر',
-            'health': 'الصحة',
-            'makeup': 'مستحضرات التجميل',
-            'perfume': 'العطور',
-            'other': 'أخرى'
-        };
-        return categories[cat] || cat;
-    }
-
-    editProduct(id) {
-        const product = AppState.products.find(p => p.id === id);
-        if (product) {
-            AppState.currentProduct = product;
-            this.showPage('scraper');
-            this.showProductPreview(product);
-        }
-    }
-
-    deleteProduct(id) {
-        if (confirm('هل أنت متأكد؟')) {
-            AppState.products = AppState.products.filter(p => p.id !== id);
-            this.saveProducts();
-            this.renderProducts();
-            this.showToast('تم الحذف', 'success');
-        }
-    }
-
-    renderReports() {
-        const products = AppState.products;
-        const total = products.length;
-        const totalValue = products.reduce((s, p) => s + p.marketPrice, 0);
-        const totalProfit = products.reduce((s, p) => s + (p.marketPrice - p.purchasePrice), 0);
-        const avgMargin = total > 0 ? products.reduce((s, p) => {
-            const m = p.purchasePrice > 0 ? ((p.marketPrice - p.purchasePrice) / p.purchasePrice) * 100 : 0;
-            return s + m;
-        }, 0) / total : 0;
-
-        const summaryEl = document.getElementById('reportSummary');
-        if (summaryEl) {
-            summaryEl.innerHTML = `
-                <div class="stat"><span>المنتجات</span><strong>${total}</strong></div>
-                <div class="stat"><span>القيمة</span><strong>${totalValue.toFixed(0)} ج</strong></div>
-                <div class="stat"><span>الأرباح</span><strong>${totalProfit.toFixed(0)} ج</strong></div>
-                <div class="stat"><span>الهامش</span><strong>${avgMargin.toFixed(0)}%</strong></div>
-            `;
-        }
-    }
-
-    exportProducts() {
-        if (AppState.products.length === 0) {
-            this.showToast('لا توجد منتجات', 'warning');
             return;
         }
 
-        const csv = [
-            ['الاسم', 'سعر الشراء', 'سعر البيع', 'الربح', 'التصنيف', 'المخزون'],
-            ...AppState.products.map(p => [
-                p.name,
-                p.purchasePrice,
-                p.marketPrice,
-                (p.marketPrice - p.purchasePrice).toFixed(2),
-                this.getCategoryName(p.category),
-                p.stock
-            ])
-        ].map(r => r.join(',')).join('\n');
+        container.innerHTML = products.map(p => `
+            <tr>
+                <td><input type="checkbox" class="product-checkbox" data-id="${p.id}"></td>
+                <td>
+                    <div style="font-weight: bold;">${p.nameAr || p.name}</div>
+                    <div style="font-size: 12px; color: #94a3b8;">${p.category || ''}</div>
+                </td>
+                <td>${p.price ? p.price + ' ج.م' : '-'}</td>
+                <td>${p.cost ? p.cost + ' ج.م' : '-'}</td>
+                <td>
+                    <span style="color: ${p.profit >= 0 ? '#10b981' : '#ef4444'}; font-weight: bold;">
+                        ${p.profit ? p.profit + ' ج.م' : '-'}
+                    </span>
+                </td>
+                <td>
+                    <span style="background: ${p.margin >= 20 ? '#10b981' : p.margin >= 10 ? '#f59e0b' : '#ef4444'}; 
+                                 color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                        ${p.margin ? p.margin + '%' : '-'}
+                    </span>
+                </td>
+                <td>
+                    <button onclick="app.deleteProduct(${p.id})" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
 
-        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        this.showToast('تم التصدير', 'success');
+    deleteProduct(id) {
+        if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+        
+        AppState.products = AppState.products.filter(p => p.id !== id);
+        this.saveProducts();
+        this.updateStats();
+        this.renderProducts();
+        
+        this.showToast('✅ تم حذف المنتج', 'success');
     }
 
     updateStats() {
-        const totalEl = document.getElementById('totalProducts');
+        // Update product count
+        const countEl = document.getElementById('productCount');
+        if (countEl) {
+            countEl.textContent = AppState.products.length;
+        }
+
+        // Calculate total profit
+        const totalProfit = AppState.products.reduce((sum, p) => sum + (p.profit || 0), 0);
         const profitEl = document.getElementById('totalProfit');
-        const stockEl = document.getElementById('lowStock');
+        if (profitEl) {
+            profitEl.textContent = totalProfit.toLocaleString() + ' ج.م';
+        }
+
+        // Calculate average margin
+        const avgMargin = AppState.products.length > 0 
+            ? AppState.products.reduce((sum, p) => sum + parseFloat(p.margin || 0), 0) / AppState.products.length 
+            : 0;
         const marginEl = document.getElementById('avgMargin');
-
-        if (totalEl) totalEl.textContent = AppState.products.length;
-
-        const totalProfit = AppState.products.reduce((s, p) => s + (p.marketPrice - p.purchasePrice), 0);
-        if (profitEl) profitEl.textContent = totalProfit.toFixed(0);
-
-        const lowStock = AppState.products.filter(p => p.stock <= 5).length;
-        if (stockEl) stockEl.textContent = lowStock;
-
-        const avgMargin = AppState.products.length > 0 ?
-            AppState.products.reduce((s, p) => {
-                const m = p.purchasePrice > 0 ? ((p.marketPrice - p.purchasePrice) / p.purchasePrice) * 100 : 0;
-                return s + m;
-            }, 0) / AppState.products.length : 0;
-        if (marginEl) marginEl.textContent = avgMargin.toFixed(0) + '%';
-    }
-
-    showProgress(text) {
-        const progress = document.getElementById('scrapeProgress');
-        const progressText = document.getElementById('progressText');
-        if (progress) {
-            progress.style.display = 'block';
-            if (progressText) progressText.textContent = text;
+        if (marginEl) {
+            marginEl.textContent = avgMargin.toFixed(1) + '%';
         }
-        AppState.isLoading = true;
-    }
 
-    hideProgress() {
-        const progress = document.getElementById('scrapeProgress');
-        if (progress) progress.style.display = 'none';
-        AppState.isLoading = false;
-    }
-
-    showModal(content) {
-        const overlay = document.getElementById('modalOverlay');
-        const modal = document.getElementById('modalContent');
-        if (overlay && modal) {
-            modal.innerHTML = content;
-            overlay.classList.add('active');
+        // Count out of stock
+        const outOfStock = AppState.products.filter(p => p.status === 'out_of_stock').length;
+        const outOfStockEl = document.getElementById('outOfStock');
+        if (outOfStockEl) {
+            outOfStockEl.textContent = outOfStock;
         }
+    }
+
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) {
+            // Create container if doesn't exist
+            const newContainer = document.createElement('div');
+            newContainer.id = 'toastContainer';
+            newContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+            document.body.appendChild(newContainer);
+        }
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6366f1'};
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        `;
+        toast.textContent = message;
+        
+        const container2 = document.getElementById('toastContainer');
+        if (container2) {
+            container2.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    }
+
+    openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add('active');
     }
 
     closeModal(event) {
         if (event && event.target !== event.currentTarget) return;
         const overlay = document.getElementById('modalOverlay');
         if (overlay) overlay.classList.remove('active');
-    }
-
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        if (!container) return;
-
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `<span>${message}</span>`;
-        container.appendChild(toast);
-
-        setTimeout(() => toast.remove(), 3000);
     }
 
     toggleSelectAll() {
@@ -386,8 +317,17 @@ class App {
     }
 }
 
-// Initialize
-const app = new App();
-window.app = app;
+// Initialize app when DOM is ready
+let app;
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        app = new App();
+        window.app = app;
+    });
+} else {
+    app = new App();
+    window.app = app;
+}
 
-export { app, AppState };
+// Make App globally available for onclick handlers
+window.App = App;

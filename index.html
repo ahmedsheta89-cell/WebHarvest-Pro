@@ -3,278 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebHarvest Pro - أداة إدارة المنتجات</title>
+    <title>WebHarvest Pro - إدارة المنتجات</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div id="app">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text">WebHarvest Pro</span>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" data-page="home">
+                <span class="nav-icon">🏠</span>
+                <span>الرئيسية</span>
+            </li>
+            <li class="nav-item" data-page="products">
+                <span class="nav-icon">📦</span>
+                <span>المنتجات</span>
+            </li>
+            <li class="nav-item" data-page="scrape">
+                <span class="nav-icon">🔍</span>
+                <span>سحب منتجات</span>
+            </li>
+            <li class="nav-item" data-page="reports">
+                <span class="nav-icon">📊</span>
+                <span>التقارير</span>
+            </li>
+            <li class="nav-item" data-page="settings">
+                <span class="nav-icon">⚙️</span>
+                <span>الإعدادات</span>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
         <!-- Header -->
         <header class="header">
-            <div class="container">
-                <div class="logo">
-                    <i class="fas fa-boxes-stacked"></i>
-                    <span>WebHarvest Pro</span>
-                </div>
-                <nav class="nav">
-                    <a href="#" class="nav-link active" data-page="home">
-                        <i class="fas fa-home"></i> الرئيسية
-                    </a>
-                    <a href="#" class="nav-link" data-page="products">
-                        <i class="fas fa-box"></i> المنتجات
-                    </a>
-                    <a href="#" class="nav-link" data-page="scrape">
-                        <i class="fas fa-download"></i> السحب
-                    </a>
-                    <a href="#" class="nav-link" data-page="reports">
-                        <i class="fas fa-chart-bar"></i> التقارير
-                    </a>
-                    <a href="#" class="nav-link" data-page="settings">
-                        <i class="fas fa-cog"></i> الإعدادات
-                    </a>
-                </nav>
-            </div>
+            <h1>WebHarvest Pro</h1>
+            <p class="subtitle">أداة إدارة المنتجات الاحترافية</p>
         </header>
 
-        <!-- Main Content -->
-        <main class="main">
-            <div class="container">
-                <!-- Home Page -->
-                <div id="page-home" class="page active">
-                    <div class="welcome-card">
-                        <h1>🛒 WebHarvest Pro</h1>
-                        <p>أداة إدارة المنتجات الاحترافية</p>
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-icon">📦</div>
-                                <div class="stat-value" id="total-products">0</div>
-                                <div class="stat-label">إجمالي المنتجات</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon">💰</div>
-                                <div class="stat-value" id="total-profit">0</div>
-                                <div class="stat-label">إجمالي الأرباح</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon">📊</div>
-                                <div class="stat-value" id="avg-margin">0%</div>
-                                <div class="stat-label">متوسط الهامش</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon">⚠️</div>
-                                <div class="stat-value" id="low-stock">0</div>
-                                <div class="stat-label">منتجات منخفضة</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Actions -->
-                    <div class="quick-actions">
-                        <h2>⚡ إجراءات سريعة</h2>
-                        <div class="actions-grid">
-                            <button class="action-card" onclick="showPage('scrape')">
-                                <i class="fas fa-download"></i>
-                                <span>سحب منتج</span>
-                            </button>
-                            <button class="action-card" onclick="showPage('products')">
-                                <i class="fas fa-box"></i>
-                                <span>عرض المنتجات</span>
-                            </button>
-                            <button class="action-card" onclick="exportProducts()">
-                                <i class="fas fa-file-export"></i>
-                                <span>تصدير</span>
-                            </button>
-                            <button class="action-card" onclick="showPage('settings')">
-                                <i class="fas fa-cog"></i>
-                                <span>الإعدادات</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Bookmarklet Info -->
-                    <div class="bookmarklet-section">
-                        <h2>🔖 أداة السحب السريع</h2>
-                        <p>اسحب الزر التالي إلى شريط المفضلة:</p>
-                        <div class="bookmarklet-box">
-                            <a href="javascript:(function(){var s=document.createElement('script');s.src='https://ahmedsheta89-cell.github.io/WebHarvest-Pro/src/bookmarklet.js';document.body.appendChild(s);})();" class="bookmarklet-btn">
-                                🛒 استخراج منتج
-                            </a>
-                        </div>
-                        <p class="hint">
-                            <i class="fas fa-info-circle"></i>
-                            بعد إضافة الأداة، اضغط عليها في أي موقع منتجات
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Products Page -->
-                <div id="page-products" class="page">
-                    <div class="page-header">
-                        <h1>📦 المنتجات</h1>
-                        <div class="page-actions">
-                            <button class="btn btn-primary" onclick="addProduct()">
-                                <i class="fas fa-plus"></i> إضافة منتج
-                            </button>
-                            <button class="btn btn-secondary" onclick="importProducts()">
-                                <i class="fas fa-file-import"></i> استيراد
-                            </button>
-                        </div>
-                    </div>
-                    <div class="products-grid" id="products-list">
-                        <!-- Products will be loaded here -->
-                    </div>
-                </div>
-
-                <!-- Scrape Page -->
-                <div id="page-scrape" class="page">
-                    <div class="page-header">
-                        <h1>📥 سحب المنتجات</h1>
-                    </div>
-                    <div class="scrape-form">
-                        <div class="form-group">
-                            <label>رابط المنتج أو الصفحة:</label>
-                            <input type="url" id="scrape-url" placeholder="https://example.com/product">
-                        </div>
-                        <button class="btn btn-primary btn-block" onclick="scrapeUrl()">
-                            <i class="fas fa-download"></i> سحب المنتجات
-                        </button>
-                    </div>
-                    <div id="scrape-results"></div>
-                </div>
-
-                <!-- Reports Page -->
-                <div id="page-reports" class="page">
-                    <div class="page-header">
-                        <h1>📊 التقارير</h1>
-                    </div>
-                    <div id="reports-content">
-                        <!-- Reports will be loaded here -->
-                    </div>
-                </div>
-
-                <!-- Settings Page -->
-                <div id="page-settings" class="page">
-                    <div class="page-header">
-                        <h1>⚙️ الإعدادات</h1>
-                    </div>
-                    <div class="settings-form">
-                        <!-- Firebase Settings -->
-                        <div class="settings-section">
-                            <h3>🔥 Firebase</h3>
-                            <div class="form-group">
-                                <label>Project ID:</label>
-                                <input type="text" id="firebase-project-id" placeholder="your-project-id">
-                            </div>
-                            <div class="form-group">
-                                <label>API Key:</label>
-                                <input type="text" id="firebase-api-key" placeholder="Your API Key">
-                            </div>
-                        </div>
-
-                        <!-- Cloudinary Settings -->
-                        <div class="settings-section">
-                            <h3>☁️ Cloudinary</h3>
-                            <div class="form-group">
-                                <label>Cloud Name:</label>
-                                <input type="text" id="cloudinary-name" placeholder="your-cloud-name">
-                            </div>
-                            <div class="form-group">
-                                <label>Upload Preset:</label>
-                                <input type="text" id="cloudinary-preset" placeholder="your-preset">
-                            </div>
-                        </div>
-
-                        <!-- Pricing Settings -->
-                        <div class="settings-section">
-                            <h3>💰 التسعير</h3>
-                            <div class="form-group">
-                                <label>هامش الربح (%):</label>
-                                <input type="number" id="profit-margin" value="25">
-                            </div>
-                            <div class="form-group">
-                                <label>الحد الأدنى للربح:</label>
-                                <input type="number" id="min-profit" value="10">
-                            </div>
-                        </div>
-
-                        <button class="btn btn-primary btn-block" onclick="saveSettings()">
-                            <i class="fas fa-save"></i> حفظ الإعدادات
-                        </button>
-                    </div>
-                </div>
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-value" id="productCount">0</div>
+                <div class="stat-label">منتج</div>
             </div>
-        </main>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value" id="totalProfit">0 ج.م</div>
+                <div class="stat-label">إجمالي الربح</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-value" id="avgMargin">0%</div>
+                <div class="stat-label">متوسط الهامش</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-value" id="outOfStock">0</div>
+                <div class="stat-label">نفد المخزون</div>
+            </div>
+        </div>
+
+        <!-- Action Cards -->
+        <div class="action-grid">
+            <!-- Bookmarklet Card -->
+            <div class="action-card">
+                <h3>🛒 استخراج منتجات</h3>
+                <p>اسحب الزر لشريط المفضلة واستخدمه على أي موقع</p>
+                <a href="javascript:(function(){var s=document.createElement('script');s.src='https://ahmedsheta89-cell.github.io/WebHarvest-Pro/src/bookmarklet.js';document.body.appendChild(s);})();\" class=\"bookmarklet-btn\">
+                    🛒 استخراج منتج
+                </a>
+                <p class="hint">💡 اسحب الزر إلى شريط المفضلة</p>
+            </div>
+
+            <!-- Add Product Card -->
+            <div class="action-card">
+                <h3>➕ إضافة منتج</h3>
+                <p>أضف منتجات يدوياً</p>
+                <button onclick="app.openModal('addProductModal')" class="btn-primary">
+                    إضافة منتج جديد
+                </button>
+            </div>
+
+            <!-- Export Card -->
+            <div class="action-card">
+                <h3>📤 تصدير</h3>
+                <p>صدّر المنتجات بصيغ متعددة</p>
+                <button onclick="app.exportProducts()" class="btn-secondary">
+                    تصدير Excel
+                </button>
+            </div>
+
+            <!-- Import Card -->
+            <div class="action-card">
+                <h3>📥 استيراد</h3>
+                <p>استيراد منتجات من ملف</p>
+                <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display: none;">
+                <button onclick="document.getElementById('importFile').click()" class="btn-secondary">
+                    استيراد من ملف
+                </button>
+            </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="products-section">
+            <div class="section-header">
+                <h2>📦 المنتجات</h2>
+                <input type="text" id="searchInput" placeholder="🔍 بحث..." class="search-input">
+            </div>
+            <table class="products-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onchange="app.toggleSelectAll()"></th>
+                        <th>المنتج</th>
+                        <th>سعر البيع</th>
+                        <th>سعر الشراء</th>
+                        <th>الربح</th>
+                        <th>الهامش</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="productsTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">📦</div>
+                            <div>لا توجد منتجات</div>
+                            <div style="font-size: 14px; margin-top: 5px;">أضف منتجات جديدة أو استخدم الـ Bookmarklet</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ إضافة منتج جديد</h2>
+                <button onclick="app.closeModal()" class="close-btn">&times;</button>
+            </div>
+            <form id="addProductForm">
+                <div class="form-group">
+                    <label>اسم المنتج *</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>سعر البيع</label>
+                        <input type="number" id="productPrice" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>سعر الشراء</label>
+                        <input type="number" id="productCost" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>التصنيف</label>
+                    <select id="productCategory">
+                        <option value="">اختر التصنيف</option>
+                        <option value="skincare">العناية بالبشرة</option>
+                        <option value="hair">العناية بالشعر</option>
+                        <option value="health">صحة</option>
+                        <option value="makeup">مكياج</option>
+                        <option value="perfume">عطور</option>
+                        <option value="personal-care">عناية شخصية</option>
+                        <option value="baby">أطفال</option>
+                        <option value="men">رجالي</option>
+                        <option value="electronics">إلكترونيات</option>
+                        <option value="fashion">ملابس</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>الوصف</label>
+                    <textarea id="productDescription" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn-primary btn-full">💾 حفظ المنتج</button>
+            </form>
+        </div>
     </div>
 
-    <!-- Product Receiver Script -->
-    <script>
-    // WebHarvest Pro - Product Receiver
-    (function() {
-        'use strict';
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
 
-        // Check for import data in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const importData = urlParams.get('import');
-
-        if (importData) {
-            try {
-                // Decode data
-                const decoded = decodeURIComponent(atob(importData));
-                const data = JSON.parse(decoded);
-
-                if (data && data.products && data.products.length > 0) {
-                    // Save to localStorage
-                    localStorage.setItem('webharvest_imported_products', JSON.stringify(data.products));
-                    
-                    // Show success message
-                    showSuccessMessage(data.products.length, data.source);
-                    
-                    // Clean URL
-                    const cleanUrl = window.location.href.split('?')[0];
-                    window.history.replaceState({}, document.title, cleanUrl);
-                    
-                    console.log('✅ Imported products:', data.products.length);
-                    
-                    // Update stats
-                    setTimeout(() => {
-                        updateStats();
-                    }, 1000);
-                }
-            } catch (error) {
-                console.error('Error importing products:', error);
-                showErrorMessage(error.message);
-            }
-        }
-
-        function showSuccessMessage(count, source) {
-            const toast = document.createElement('div');
-            toast.id = 'import-toast';
-            toast.style.cssText = 'position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:white;padding:30px 40px;border-radius:20px;z-index:99999;box-shadow:0 20px 60px rgba(0,0,0,0.4);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;direction:rtl;animation:slideIn 0.5s ease;min-width:350px;';
-            toast.innerHTML = '<div style="display:flex;align-items:center;gap:20px;"><span style="font-size:50px;">✅</span><div><div style="font-size:28px;font-weight:bold;">تم استيراد ' + count + ' منتج!</div><div style="font-size:16px;opacity:0.9;margin-top:8px;">من ' + (source || 'موقع غير معروف') + '</div><div style="font-size:14px;opacity:0.8;margin-top:5px;">تم حفظهم في WebHarvest Pro</div></div></div>';
-            document.body.appendChild(toast);
-
-            const style = document.createElement('style');
-            style.textContent = '@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}';
-            document.head.appendChild(style);
-
-            setTimeout(() => {
-                toast.style.animation = 'slideOut 0.5s ease';
-                setTimeout(() => toast.remove(), 500);
-            }, 5000);
-        }
-
-        function showErrorMessage(message) {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#ef4444 0%,#dc2626 100%);color:white;padding:25px 35px;border-radius:15px;z-index:99999;box-shadow:0 15px 40px rgba(0,0,0,0.3);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;direction:rtl;';
-            toast.innerHTML = '<div style="display:flex;align-items:center;gap:15px;"><span style="font-size:30px;">❌</span><div><div style="font-size:18px;font-weight:bold;">خطأ في الاستيراد</div><div style="font-size:14px;margin-top:5px;">' + message + '</div></div></div>';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 5000);
-        }
-    })();
-    </script>
-
-    <!-- Main App Script -->
+    <!-- App Script -->
     <script src="src/app.js"></script>
 </body>
 </html>
