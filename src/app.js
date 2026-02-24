@@ -1,1334 +1,657 @@
 /**
  * WebHarvest Pro - Main Application
- * التطبيق الرئيسي مع كل الميزات
+ * التطبيق الرئيسي
  */
 
-import { CONFIG, configManager } from './config.js';
-import { browserScraper, scraperManager } from './scraper.js';
+import { CONFIG, ConfigManager, configManager } from './config.js';
+import { universalScraper, scraperManager } from './scraper.js';
 import { imageManager } from './images.js';
 import { translator } from './translate.js';
-import { firebaseDB } from './firebase.js';
-import { productManager } from './products.js';
-import { ExportManager } from './export.js';
-import { qrScanner, barcodeGenerator, qrHistory } from './qr-scanner.js';
-import { voiceSearch, voiceCommands, voiceHistory } from './voice.js';
-import { aiPriceAnalyzer, aiProductSuggestions } from './ai-suggestions.js';
-import { bulkEditor, bulkImporter, bulkExporter } from './bulk-operations.js';
-import { productTemplates, quickFill } from './templates.js';
 import { analytics } from './reports.js';
-import { ActivityLogger } from './utils.js';
+import { qrScanner, barcodeGenerator } from './qr-scanner.js';
+import { voiceSearch, voiceCommands } from './voice.js';
+import { aiPriceAnalyzer, aiProductSuggestions } from './ai-suggestions.js';
+import { bulkEditor, bulkImporter } from './bulk-operations.js';
+import { productTemplates, quickFill } from './templates.js';
 
 // Application State
 const AppState = {
     products: [],
-    selectedProducts: new Set(),
-    currentView: 'dashboard',
+    currentProduct: null,
+    settings: {},
     isLoading: false,
-    searchQuery: '',
-    filters: {
-        category: null,
-        status: null,
-        priceRange: null
-    },
-    settings: {
-        theme: 'dark',
-        language: 'ar',
-        rtl: true
-    },
-    user: null
+    currentPage: 'home'
 };
 
 // Main Application Class
 class App {
     constructor() {
-        this.state = AppState;
-        this.logger = new ActivityLogger();
         this.init();
     }
 
     async init() {
-        console.log('🚀 Initializing WebHarvest Pro...');
+        console.log('🚀 WebHarvest Pro starting...');
         
-        // تحميل الإعدادات
-        this.loadSettings();
+        // Load settings
+        AppState.settings = ConfigManager.load();
         
-        // تهيئة Firebase
-        if (configManager.isConfigured()) {
-            await this.initFirebase();
-        }
+        // Load products from localStorage
+        this.loadProducts();
         
-        // تهيئة الأحداث
+        // Setup event listeners
         this.setupEventListeners();
         
-        // تحميل المنتجات
-        await this.loadProducts();
+        // Update UI
+        this.updateStats();
         
-        // تهيئة الواجهة
-        this.initUI();
-        
-        console.log('✅ WebHarvest Pro initialized');
-    }
-
-    loadSettings() {
-        this.state.settings = {
-            theme: CONFIG.ui?.theme || 'dark',
-            language: CONFIG.ui?.language || 'ar',
-            rtl: CONFIG.ui?.rtl !== false
-        };
-        
-        this.applyTheme(this.state.settings.theme);
-    }
-
-    applyTheme(theme) {
-        document.body.classList.remove('theme-dark', 'theme-light');
-        document.body.classList.add(`theme-${theme}`);
-        document.documentElement.setAttribute('data-theme', theme);
-    }
-
-    async initFirebase() {
-        try {
-            await firebaseDB.init();
-            this.state.user = firebaseDB.getCurrentUser();
-            this.logger.log('firebase_init', 'تم الاتصال بـ Firebase');
-        } catch (error) {
-            console.error('Firebase init error:', error);
-        }
+        console.log('✅ WebHarvest Pro ready!');
     }
 
     setupEventListeners() {
         // Navigation
-        document.querySelectorAll('[data-view]').forEach(el => {
-            el.addEventListener('click', (e) => {
+        document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+            link.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.navigateTo(el.dataset.view);
+                this.showPage(link.dataset.page);
             });
         });
 
-        // Search
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.searchProducts(e.target.value);
-            });
-        }
-
-        // Voice Search Button
-        const voiceBtn = document.getElementById('voiceSearchBtn');
-        if (voiceBtn) {
-            voiceBtn.addEventListener('click', () => this.toggleVoiceSearch());
-        }
-
-        // QR Scanner Button
-        const qrBtn = document.getElementById('qrScannerBtn');
-        if (qrBtn) {
-            qrBtn.addEventListener('click', () => this.openQRScanner());
-        }
-
-        // Add Product
-        const addBtn = document.getElementById('addProductBtn');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => this.openAddProductModal());
-        }
-
-        // Import
-        const importBtn = document.getElementById('importBtn');
-        if (importBtn) {
-            importBtn.addEventListener('click', () => this.openImportModal());
-        }
-
-        // Export
-        const exportBtn = document.getElementById('exportBtn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.openExportModal());
-        }
-
-        // Settings
-        const settingsBtn = document.getElementById('settingsBtn');
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', () => this.openSettingsModal());
-        }
-
-        // Bulk Actions
-        const bulkActionsBtn = document.getElementById('bulkActionsBtn');
-        if (bulkActionsBtn) {
-            bulkActionsBtn.addEventListener('click', () => this.openBulkActionsModal());
-        }
-
-        // Theme Toggle
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => this.toggleTheme());
-        }
-
-        // Keyboard Shortcuts
-        document.addEventListener('keydown', (e) => this.handleKeyboard(e));
-    }
-
-    handleKeyboard(e) {
-        // Ctrl/Cmd + K - Search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            document.getElementById('searchInput')?.focus();
-        }
-        
-        // Ctrl/Cmd + N - New Product
-        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-            e.preventDefault();
-            this.openAddProductModal();
-        }
-        
-        // Escape - Close Modal
-        if (e.key === 'Escape') {
-            this.closeAllModals();
-        }
-    }
-
-    navigateTo(view) {
-        this.state.currentView = view;
-        
-        // Update navigation
-        document.querySelectorAll('[data-view]').forEach(el => {
-            el.classList.toggle('active', el.dataset.view === view);
-        });
-        
-        // Show view
-        document.querySelectorAll('.view').forEach(el => {
-            el.classList.toggle('hidden', el.id !== `${view}View`);
-        });
-        
-        // Load view data
-        this.loadViewData(view);
-    }
-
-    async loadViewData(view) {
-        switch (view) {
-            case 'dashboard':
-                await this.loadDashboard();
-                break;
-            case 'products':
-                await this.loadProducts();
-                break;
-            case 'scraper':
-                this.loadScraperView();
-                break;
-            case 'analytics':
-                await this.loadAnalytics();
-                break;
-            case 'settings':
-                this.loadSettingsView();
-                break;
-        }
-    }
-
-    async loadProducts() {
-        this.state.isLoading = true;
-        this.renderLoading();
-        
-        try {
-            if (configManager.isConfigured()) {
-                this.state.products = await firebaseDB.getAllProducts();
-            } else {
-                // Load from localStorage
-                const saved = localStorage.getItem('webharvest_products');
-                this.state.products = saved ? JSON.parse(saved) : [];
-            }
-            
-            this.renderProducts();
-            this.logger.log('products_loaded', `تم تحميل ${this.state.products.length} منتج`);
-        } catch (error) {
-            console.error('Error loading products:', error);
-            this.showError('فشل تحميل المنتجات');
-        }
-        
-        this.state.isLoading = false;
-    }
-
-    renderProducts() {
-        const container = document.getElementById('productsGrid');
-        if (!container) return;
-        
-        let products = [...this.state.products];
-        
-        // Apply filters
-        if (this.state.filters.category) {
-            products = products.filter(p => p.category === this.state.filters.category);
-        }
-        
-        if (this.state.filters.status) {
-            products = products.filter(p => p.status === this.state.filters.status);
-        }
-        
-        // Apply search
-        if (this.state.searchQuery) {
-            const query = this.state.searchQuery.toLowerCase();
-            products = products.filter(p => 
-                p.name?.toLowerCase().includes(query) ||
-                p.nameAr?.toLowerCase().includes(query) ||
-                p.barcode?.includes(query) ||
-                p.sku?.toLowerCase().includes(query)
-            );
-        }
-        
-        // Render
-        if (products.length === 0) {
-            container.innerHTML = this.getEmptyState();
-        } else {
-            container.innerHTML = products.map(p => this.renderProductCard(p)).join('');
-        }
-        
-        // Update count
-        const countEl = document.getElementById('productsCount');
-        if (countEl) {
-            countEl.textContent = products.length;
-        }
-    }
-
-    renderProductCard(product) {
-        const isSelected = this.state.selectedProducts.has(product.id);
-        const analysis = aiPriceAnalyzer.analyzePrice(
-            product.purchasePrice || 0,
-            product.price || 0,
-            product.category
-        );
-        
-        return `
-            <div class="product-card ${isSelected ? 'selected' : ''}" data-id="${product.id}">
-                <div class="product-checkbox">
-                    <input type="checkbox" 
-                           ${isSelected ? 'checked' : ''} 
-                           onchange="app.toggleProductSelection('${product.id}')">
-                </div>
-                <div class="product-image">
-                    ${product.images?.[0] 
-                        ? `<img src="${product.images[0]}" alt="${product.name}">` 
-                        : '<div class="no-image">📦</div>'}
-                </div>
-                <div class="product-info">
-                    <h3 class="product-name">${product.nameAr || product.name}</h3>
-                    <p class="product-category">${CONFIG.categories?.[product.category]?.ar || product.category}</p>
-                    <div class="product-prices">
-                        <span class="purchase-price">شراء: ${product.purchasePrice || 0} ${CONFIG.pricing?.currency || 'EGP'}</span>
-                        <span class="sale-price">بيع: ${product.price || 0} ${CONFIG.pricing?.currency || 'EGP'}</span>
-                    </div>
-                    <div class="product-profit ${analysis.current.margin < 15 ? 'low-margin' : ''}">
-                        ربح: ${analysis.current.profit.toFixed(0)} (${analysis.current.margin.toFixed(1)}%)
-                    </div>
-                    <div class="product-stock ${product.stock < 5 ? 'low-stock' : ''}">
-                        المخزون: ${product.stock || 0}
-                    </div>
-                </div>
-                <div class="product-actions">
-                    <button onclick="app.editProduct('${product.id}')" title="تعديل">✏️</button>
-                    <button onclick="app.duplicateProduct('${product.id}')" title="نسخ">📋</button>
-                    <button onclick="app.deleteProduct('${product.id}')" title="حذف">🗑️</button>
-                </div>
-            </div>
-        `;
-    }
-
-    getEmptyState() {
-        return `
-            <div class="empty-state">
-                <div class="empty-icon">📦</div>
-                <h3>لا توجد منتجات</h3>
-                <p>ابدأ بإضافة منتجات جديدة</p>
-                <button onclick="app.openAddProductModal()" class="btn-primary">
-                    إضافة منتج جديد
-                </button>
-            </div>
-        `;
-    }
-
-    // === Product Actions ===
-
-    toggleProductSelection(productId) {
-        if (this.state.selectedProducts.has(productId)) {
-            this.state.selectedProducts.delete(productId);
-        } else {
-            this.state.selectedProducts.add(productId);
-        }
-        this.renderProducts();
-        this.updateBulkActionsState();
-    }
-
-    selectAllProducts() {
-        this.state.products.forEach(p => this.state.selectedProducts.add(p.id));
-        this.renderProducts();
-        this.updateBulkActionsState();
-    }
-
-    clearSelection() {
-        this.state.selectedProducts.clear();
-        this.renderProducts();
-        this.updateBulkActionsState();
-    }
-
-    updateBulkActionsState() {
-        const count = this.state.selectedProducts.size;
-        const bulkBtn = document.getElementById('bulkActionsBtn');
-        if (bulkBtn) {
-            bulkBtn.textContent = `إجراءات جماعية (${count})`;
-            bulkBtn.disabled = count === 0;
-        }
-    }
-
-    async addProduct(productData) {
-        try {
-            // AI suggestions
-            const suggestions = aiProductSuggestions.suggestKeywords(
-                productData.name,
-                productData.description
-            );
-            
-            const priceAnalysis = aiPriceAnalyzer.analyzePrice(
-                productData.purchasePrice,
-                productData.price,
-                productData.category
-            );
-            
-            const product = {
-                ...productData,
-                keywords: suggestions.keywords,
-                priceAnalysis: priceAnalysis,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-            
-            if (configManager.isConfigured()) {
-                await firebaseDB.addProduct(product);
-            } else {
-                this.state.products.push(product);
-                this.saveProductsLocal();
-            }
-            
-            this.logger.log('product_added', `تم إضافة: ${product.name}`);
-            this.renderProducts();
-            this.closeAllModals();
-            
-            return product;
-        } catch (error) {
-            console.error('Error adding product:', error);
-            throw error;
-        }
-    }
-
-    async editProduct(productId) {
-        const product = this.state.products.find(p => p.id === productId);
-        if (!product) return;
-        
-        this.openAddProductModal(product);
-    }
-
-    async updateProduct(productId, updates) {
-        try {
-            const product = {
-                ...updates,
-                updatedAt: new Date().toISOString()
-            };
-            
-            if (configManager.isConfigured()) {
-                await firebaseDB.updateProduct(productId, product);
-            } else {
-                const index = this.state.products.findIndex(p => p.id === productId);
-                if (index !== -1) {
-                    this.state.products[index] = { ...this.state.products[index], ...product };
-                    this.saveProductsLocal();
-                }
-            }
-            
-            this.logger.log('product_updated', `تم تحديث: ${product.name}`);
-            this.renderProducts();
-            this.closeAllModals();
-        } catch (error) {
-            console.error('Error updating product:', error);
-            throw error;
-        }
-    }
-
-    async deleteProduct(productId) {
-        if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
-        
-        try {
-            if (configManager.isConfigured()) {
-                await firebaseDB.deleteProduct(productId);
-            } else {
-                this.state.products = this.state.products.filter(p => p.id !== productId);
-                this.saveProductsLocal();
-            }
-            
-            this.logger.log('product_deleted', `تم حذف منتج`);
-            this.renderProducts();
-        } catch (error) {
-            console.error('Error deleting product:', error);
-            throw error;
-        }
-    }
-
-    async duplicateProduct(productId) {
-        const product = this.state.products.find(p => p.id === productId);
-        if (!product) return;
-        
-        const duplicate = {
-            ...product,
-            id: Date.now().toString(),
-            name: `${product.name} (نسخة)`,
-            nameAr: product.nameAr ? `${product.nameAr} (نسخة)` : '',
-            createdAt: new Date().toISOString()
-        };
-        
-        await this.addProduct(duplicate);
-    }
-
-    saveProductsLocal() {
-        localStorage.setItem('webharvest_products', JSON.stringify(this.state.products));
-    }
-
-    // === Search ===
-
-    searchProducts(query) {
-        this.state.searchQuery = query;
-        this.renderProducts();
-    }
-
-    toggleVoiceSearch() {
-        if (!voiceSearch.isListening) {
-            voiceSearch.start({
-                language: 'ar-EG',
-                onResult: (data) => {
-                    if (data.final) {
-                        document.getElementById('searchInput').value = data.final;
-                        this.searchProducts(data.final);
-                    }
-                },
-                onError: (error) => {
-                    this.showError(error.message);
-                }
-            });
-        } else {
-            voiceSearch.stop();
-        }
-    }
-
-    // === QR Scanner ===
-
-    openQRScanner() {
-        const modal = document.getElementById('qrScannerModal');
-        if (modal) {
-            modal.classList.add('active');
-            this.startQRScanner();
-        }
-    }
-
-    async startQRScanner() {
-        const video = document.getElementById('qrVideo');
-        const canvas = document.getElementById('qrCanvas');
-        
-        if (!video || !canvas) return;
-        
-        await qrScanner.init(video, canvas);
-        qrScanner.startScan({
-            onResult: (data) => {
-                // البحث عن المنتج بالباركود
-                const product = this.state.products.find(p => p.barcode === data.text);
-                if (product) {
-                    this.editProduct(product.id);
-                } else {
-                    document.getElementById('barcodeInput').value = data.text;
-                    this.openAddProductModal({ barcode: data.text });
-                }
-                qrScanner.stopScan();
-                this.closeAllModals();
-            },
-            onError: (error) => {
-                this.showError(error.message);
+        // Price calculation
+        ['purchasePrice', 'marketPrice'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => this.calculateProfit());
             }
         });
     }
 
-    // === Modals ===
-
-    openAddProductModal(product = null) {
-        const modal = document.getElementById('addProductModal');
-        if (!modal) return;
+    // Page Navigation
+    showPage(pageName) {
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         
-        const isEdit = !!product;
-        const templates = productTemplates.getAllTemplates();
-        
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>${isEdit ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h2>
-                    <button onclick="app.closeAllModals()" class="close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="productForm">
-                        <!-- Templates -->
-                        <div class="form-group" ${isEdit ? 'style="display:none"' : ''}>
-                            <label>اختيار قالب</label>
-                            <select id="templateSelect" onchange="app.applyTemplate(this.value)">
-                                <option value="">بدون قالب</option>
-                                ${templates.map(t => `
-                                    <option value="${t.id}">${t.nameAr} (${CONFIG.categories?.[t.category]?.ar || t.category})</option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        
-                        <!-- Basic Info -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>اسم المنتج (إنجليزي)</label>
-                                <input type="text" name="name" value="${product?.name || ''}" required>
-                            </div>
-                            <div class="form-group">
-                                <label>اسم المنتج (عربي)</label>
-                                <input type="text" name="nameAr" value="${product?.nameAr || ''}">
-                            </div>
-                        </div>
-                        
-                        <!-- Category -->
-                        <div class="form-group">
-                            <label>الفئة</label>
-                            <select name="category" required>
-                                <option value="">اختر الفئة</option>
-                                ${Object.entries(CONFIG.categories || {}).map(([key, val]) => `
-                                    <option value="${key}" ${product?.category === key ? 'selected' : ''}>
-                                        ${val.icon} ${val.ar}
-                                    </option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        
-                        <!-- Pricing -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>سعر الشراء</label>
-                                <input type="number" name="purchasePrice" value="${product?.purchasePrice || ''}" required>
-                            </div>
-                            <div class="form-group">
-                                <label>سعر البيع</label>
-                                <input type="number" name="price" value="${product?.price || ''}" required>
-                            </div>
-                        </div>
-                        
-                        <!-- AI Suggestion -->
-                        <div id="priceSuggestion" class="ai-suggestion" style="display:none">
-                            <!-- سيتم ملؤها تلقائياً -->
-                        </div>
-                        
-                        <!-- Stock & Barcode -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>المخزون</label>
-                                <input type="number" name="stock" value="${product?.stock || 0}">
-                            </div>
-                            <div class="form-group">
-                                <label>الباركود</label>
-                                <input type="text" name="barcode" value="${product?.barcode || ''}">
-                            </div>
-                            <div class="form-group">
-                                <label>SKU</label>
-                                <input type="text" name="sku" value="${product?.sku || ''}">
-                            </div>
-                        </div>
-                        
-                        <!-- Description -->
-                        <div class="form-group">
-                            <label>الوصف</label>
-                            <textarea name="description" rows="3">${product?.description || ''}</textarea>
-                        </div>
-                        
-                        <!-- Images -->
-                        <div class="form-group">
-                            <label>الصور</label>
-                            <input type="file" name="images" multiple accept="image/*">
-                            <div class="image-preview" id="imagePreview">
-                                ${(product?.images || []).map(img => `
-                                    <img src="${img}" onclick="app.removeImage(this)">
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <!-- URL Scraper -->
-                        <div class="form-group">
-                            <label>رابط المنتج (لسحب البيانات)</label>
-                            <div class="input-group">
-                                <input type="url" id="scrapeUrl" placeholder="الصق رابط المنتج من أي موقع">
-                                <button type="button" onclick="app.scrapeProductUrl()" class="btn-secondary">
-                                    سحب البيانات
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" onclick="app.closeAllModals()" class="btn-secondary">
-                        إلغاء
-                    </button>
-                    <button type="button" onclick="app.saveProduct('${product?.id || ''}')" class="btn-primary">
-                        ${isEdit ? 'حفظ التعديلات' : 'إضافة المنتج'}
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        modal.classList.add('active');
-        
-        // Auto-suggest on price change
-        const purchaseInput = modal.querySelector('[name="purchasePrice"]');
-        const priceInput = modal.querySelector('[name="price"]');
-        
-        const updateSuggestion = () => {
-            const purchase = parseFloat(purchaseInput.value) || 0;
-            const price = parseFloat(priceInput.value) || 0;
-            const category = modal.querySelector('[name="category"]').value;
-            
-            if (purchase > 0 && price > 0) {
-                const analysis = aiPriceAnalyzer.analyzePrice(purchase, price, category);
-                const suggestionEl = document.getElementById('priceSuggestion');
-                
-                suggestionEl.style.display = 'block';
-                suggestionEl.innerHTML = `
-                    <div class="suggestion-content">
-                        <span class="suggestion-icon">💡</span>
-                        <div>
-                            <strong>اقتراح AI:</strong> ${analysis.suggestions[0]?.reason || ''}
-                            <br>
-                            <small>الربح: ${analysis.current.profit.toFixed(0)} | الهامش: ${analysis.current.margin.toFixed(1)}%</small>
-                        </div>
-                    </div>
-                `;
-            }
-        };
-        
-        purchaseInput?.addEventListener('input', updateSuggestion);
-        priceInput?.addEventListener('input', updateSuggestion);
-    }
-
-    applyTemplate(templateId) {
-        if (!templateId) return;
-        
-        const template = productTemplates.getTemplate(templateId);
-        if (!template) return;
-        
-        const form = document.getElementById('productForm');
-        if (!form) return;
-        
-        // Apply template defaults
-        form.querySelector('[name="category"]').value = template.category;
-    }
-
-    async scrapeProductUrl() {
-        const urlInput = document.getElementById('scrapeUrl');
-        if (!urlInput || !urlInput.value) return;
-        
-        try {
-            this.showLoading('جاري سحب البيانات...');
-            
-            const result = await browserScraper.scrape(urlInput.value);
-            
-            if (result.success) {
-                const form = document.getElementById('productForm');
-                
-                if (result.name) form.querySelector('[name="name"]').value = result.name;
-                if (result.price) form.querySelector('[name="price"]').value = result.price;
-                if (result.description) form.querySelector('[name="description"]').value = result.description;
-                
-                // Translate if needed
-                if (result.name && this.state.settings.language === 'ar') {
-                    const translated = await translator.translate(result.name, 'en', 'ar');
-                    form.querySelector('[name="nameAr"]').value = translated;
-                }
-            }
-            
-            this.hideLoading();
-        } catch (error) {
-            this.showError('فشل سحب البيانات');
-            console.error(error);
+        // Show selected page
+        const page = document.getElementById(`${pageName}Page`);
+        if (page) {
+            page.classList.add('active');
         }
-    }
 
-    async saveProduct(productId = '') {
-        const form = document.getElementById('productForm');
-        if (!form) return;
-        
-        const formData = new FormData(form);
-        const productData = {
-            name: formData.get('name'),
-            nameAr: formData.get('nameAr'),
-            category: formData.get('category'),
-            purchasePrice: parseFloat(formData.get('purchasePrice')) || 0,
-            price: parseFloat(formData.get('price')) || 0,
-            stock: parseInt(formData.get('stock')) || 0,
-            barcode: formData.get('barcode'),
-            sku: formData.get('sku'),
-            description: formData.get('description'),
-            status: 'active'
-        };
-        
-        try {
-            if (productId) {
-                await this.updateProduct(productId, productData);
-            } else {
-                await this.addProduct(productData);
+        // Update nav
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.dataset.page === pageName) {
+                link.classList.add('active');
             }
-        } catch (error) {
-            this.showError('فشل حفظ المنتج');
-        }
-    }
-
-    openSettingsModal() {
-        const modal = document.getElementById('settingsModal');
-        if (!modal) return;
-        
-        modal.innerHTML = `
-            <div class="modal-content modal-large">
-                <div class="modal-header">
-                    <h2>⚙️ الإعدادات</h2>
-                    <button onclick="app.closeAllModals()" class="close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="settings-tabs">
-                        <button class="tab-btn active" data-tab="firebase">🔥 Firebase</button>
-                        <button class="tab-btn" data-tab="cloudinary">☁️ Cloudinary</button>
-                        <button class="tab-btn" data-tab="pricing">💰 التسعير</button>
-                        <button class="tab-btn" data-tab="ui">🎨 الواجهة</button>
-                        <button class="tab-btn" data-tab="import">📥 استيراد/تصدير</button>
-                    </div>
-                    
-                    <div class="tab-content active" id="tab-firebase">
-                        <h3>إعدادات Firebase</h3>
-                        <p class="hint">احصل على البيانات من <a href="https://console.firebase.google.com" target="_blank">Firebase Console</a></p>
-                        
-                        <div class="form-group">
-                            <label>API Key</label>
-                            <input type="text" id="firebase_apiKey" value="${CONFIG.firebase?.apiKey || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Auth Domain</label>
-                            <input type="text" id="firebase_authDomain" value="${CONFIG.firebase?.authDomain || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Project ID</label>
-                            <input type="text" id="firebase_projectId" value="${CONFIG.firebase?.projectId || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Storage Bucket</label>
-                            <input type="text" id="firebase_storageBucket" value="${CONFIG.firebase?.storageBucket || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Messaging Sender ID</label>
-                            <input type="text" id="firebase_messagingSenderId" value="${CONFIG.firebase?.messagingSenderId || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>App ID</label>
-                            <input type="text" id="firebase_appId" value="${CONFIG.firebase?.appId || ''}">
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="tab-cloudinary">
-                        <h3>إعدادات Cloudinary</h3>
-                        <p class="hint">احصل على البيانات من <a href="https://cloudinary.com/console" target="_blank">Cloudinary Console</a></p>
-                        
-                        <div class="form-group">
-                            <label>Cloud Name</label>
-                            <input type="text" id="cloudinary_cloudName" value="${CONFIG.cloudinary?.cloudName || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Upload Preset</label>
-                            <input type="text" id="cloudinary_uploadPreset" value="${CONFIG.cloudinary?.uploadPreset || ''}">
-                            <small>أنشئ upload preset من Settings > Upload في Cloudinary</small>
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="tab-pricing">
-                        <h3>إعدادات التسعير</h3>
-                        
-                        <div class="form-group">
-                            <label>هامش الربح الافتراضي (%)</label>
-                            <input type="number" id="pricing_profitMargin" value="${CONFIG.pricing?.profitMargin || 25}">
-                        </div>
-                        <div class="form-group">
-                            <label>أقل ربح مقبول</label>
-                            <input type="number" id="pricing_minProfit" value="${CONFIG.pricing?.minProfit || 10}">
-                        </div>
-                        <div class="form-group">
-                            <label>العملة</label>
-                            <select id="pricing_currency">
-                                <option value="EGP" ${CONFIG.pricing?.currency === 'EGP' ? 'selected' : ''}>جنيه مصري (EGP)</option>
-                                <option value="SAR" ${CONFIG.pricing?.currency === 'SAR' ? 'selected' : ''}>ريال سعودي (SAR)</option>
-                                <option value="AED" ${CONFIG.pricing?.currency === 'AED' ? 'selected' : ''}>درهم إماراتي (AED)</option>
-                                <option value="USD" ${CONFIG.pricing?.currency === 'USD' ? 'selected' : ''}>دولار أمريكي (USD)</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="tab-ui">
-                        <h3>إعدادات الواجهة</h3>
-                        
-                        <div class="form-group">
-                            <label>المظهر</label>
-                            <select id="ui_theme" onchange="app.applyTheme(this.value)">
-                                <option value="dark" ${CONFIG.ui?.theme === 'dark' ? 'selected' : ''}>داكن 🌙</option>
-                                <option value="light" ${CONFIG.ui?.theme === 'light' ? 'selected' : ''}>فاتح ☀️</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>اللغة</label>
-                            <select id="ui_language">
-                                <option value="ar" ${CONFIG.ui?.language === 'ar' ? 'selected' : ''}>العربية</option>
-                                <option value="en" ${CONFIG.ui?.language === 'en' ? 'selected' : ''}>English</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="tab-content" id="tab-import">
-                        <h3>استيراد/تصدير الإعدادات</h3>
-                        
-                        <div class="form-group">
-                            <label>تصدير الإعدادات</label>
-                            <button onclick="app.exportSettings()" class="btn-secondary">
-                                📤 تصدير الإعدادات
-                            </button>
-                        </div>
-                        <div class="form-group">
-                            <label>استيراد الإعدادات</label>
-                            <input type="file" id="importSettingsFile" accept=".json">
-                            <button onclick="app.importSettings()" class="btn-secondary">
-                                📥 استيراد الإعدادات
-                            </button>
-                        </div>
-                        <div class="form-group">
-                            <button onclick="app.resetSettings()" class="btn-danger">
-                                🗑️ إعادة تعيين الإعدادات
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" onclick="app.closeAllModals()" class="btn-secondary">
-                        إلغاء
-                    </button>
-                    <button type="button" onclick="app.saveSettings()" class="btn-primary">
-                        💾 حفظ الإعدادات
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        // Tab switching
-        modal.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                modal.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
-            });
         });
-        
-        modal.classList.add('active');
-    }
 
-    saveSettings() {
-        const settings = {
-            firebase: {
-                apiKey: document.getElementById('firebase_apiKey')?.value || '',
-                authDomain: document.getElementById('firebase_authDomain')?.value || '',
-                projectId: document.getElementById('firebase_projectId')?.value || '',
-                storageBucket: document.getElementById('firebase_storageBucket')?.value || '',
-                messagingSenderId: document.getElementById('firebase_messagingSenderId')?.value || '',
-                appId: document.getElementById('firebase_appId')?.value || ''
-            },
-            cloudinary: {
-                cloudName: document.getElementById('cloudinary_cloudName')?.value || '',
-                uploadPreset: document.getElementById('cloudinary_uploadPreset')?.value || ''
-            },
-            pricing: {
-                profitMargin: parseInt(document.getElementById('pricing_profitMargin')?.value) || 25,
-                minProfit: parseInt(document.getElementById('pricing_minProfit')?.value) || 10,
-                currency: document.getElementById('pricing_currency')?.value || 'EGP'
-            },
-            ui: {
-                theme: document.getElementById('ui_theme')?.value || 'dark',
-                language: document.getElementById('ui_language')?.value || 'ar'
-            }
-        };
-        
-        configManager.save(settings);
-        this.showSuccess('تم حفظ الإعدادات');
-        this.closeAllModals();
-        
-        // Re-init Firebase if configured
-        if (configManager.isConfigured()) {
-            this.initFirebase();
+        AppState.currentPage = pageName;
+
+        // Update page content
+        if (pageName === 'products') {
+            this.renderProducts();
+        } else if (pageName === 'reports') {
+            this.renderReports();
         }
     }
 
-    exportSettings() {
-        const json = configManager.export();
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'webharvest-settings.json';
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    importSettings() {
-        const file = document.getElementById('importSettingsFile')?.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            if (configManager.import(e.target.result)) {
-                this.showSuccess('تم استيراد الإعدادات');
-                location.reload();
-            } else {
-                this.showError('فشل استيراد الإعدادات');
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    resetSettings() {
-        if (confirm('هل أنت متأكد من إعادة تعيين كل الإعدادات؟')) {
-            configManager.reset();
-            location.reload();
+    // Products Management
+    loadProducts() {
+        try {
+            const saved = localStorage.getItem('webharvest_products');
+            AppState.products = saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Error loading products:', e);
+            AppState.products = [];
         }
     }
 
-    openBulkActionsModal() {
-        const selectedCount = this.state.selectedProducts.size;
-        if (selectedCount === 0) return;
-        
-        const modal = document.getElementById('bulkActionsModal');
-        if (!modal) return;
-        
-        const operations = bulkEditor.getAvailableOperations();
-        
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>إجراءات جماعية (${selectedCount} منتج)</h2>
-                    <button onclick="app.closeAllModals()" class="close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="bulk-operations">
-                        ${operations.map(op => `
-                            <button class="bulk-op-btn ${op.dangerous ? 'dangerous' : ''}" 
-                                    onclick="app.executeBulkAction('${op.id}')">
-                                <span class="op-icon">${op.icon}</span>
-                                <span class="op-name">${op.name}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        modal.classList.add('active');
+    saveProducts() {
+        localStorage.setItem('webharvest_products', JSON.stringify(AppState.products));
+        this.updateStats();
     }
 
-    async executeBulkAction(operation) {
-        const selected = this.state.selectedProducts;
-        const products = this.state.products.filter(p => selected.has(p.id));
-        
-        if (!confirm(`هل أنت متأكد من تنفيذ هذه العملية على ${products.length} منتج؟`)) {
+    // Scraping
+    async scrapeProduct() {
+        const urlInput = document.getElementById('productUrl');
+        const url = urlInput?.value?.trim();
+
+        if (!url) {
+            this.showToast('الرجاء إدخال رابط المنتج', 'warning');
             return;
         }
-        
-        let options = {};
-        
-        // Get operation-specific options
-        switch (operation) {
-            case 'updatePrice':
-                const priceType = prompt('نوع التغيير:\n1 - نسبة مئوية\n2 - مبلغ ثابت\n3 - سعر محدد');
-                const value = parseFloat(prompt('القيمة:'));
-                options = { priceType: ['percent', 'fixed', 'fixed'][parseInt(priceType) - 1], value };
-                break;
-            case 'updateCategory':
-                options.newCategory = prompt('الفئة الجديدة:');
-                break;
-            case 'applyDiscount':
-                options.discountPercent = parseFloat(prompt('نسبة الخصم (%):'));
-                break;
+
+        try {
+            this.showProgress('جاري سحب البيانات...');
+
+            // Use universal scraper
+            const product = await universalScraper.scrape(url);
+
+            if (product) {
+                this.showProductPreview(product);
+                this.showToast('تم سحب البيانات بنجاح', 'success');
+            } else {
+                throw new Error('لم يتم العثور على بيانات');
+            }
+        } catch (error) {
+            console.error('Scraping error:', error);
+            this.showToast(`خطأ: ${error.message}`, 'error');
+        } finally {
+            this.hideProgress();
         }
+    }
+
+    showProductPreview(product) {
+        AppState.currentProduct = product;
+
+        // Show preview section
+        const preview = document.getElementById('productPreview');
+        if (preview) preview.style.display = 'block';
+
+        // Fill form
+        document.getElementById('productName').value = product.name || '';
+        document.getElementById('productDesc').value = product.description || '';
+        document.getElementById('marketPrice').value = product.price || '';
+        document.getElementById('purchasePrice').value = '';
+        document.getElementById('productCategory').value = product.category || '';
+        document.getElementById('productStock').value = 1;
+
+        // Show images
+        const imagesContainer = document.getElementById('productImages');
+        if (imagesContainer && product.images?.length) {
+            imagesContainer.innerHTML = `<img src="${product.images[0]}" alt="${product.name}">`;
+        }
+
+        // Get AI suggestions
+        this.getAISuggestions(product);
+
+        // Calculate profit
+        this.calculateProfit();
+    }
+
+    async getAISuggestions(product) {
+        const suggestionsDiv = document.getElementById('aiContent');
+        if (!suggestionsDiv) return;
+
+        try {
+            const suggestions = aiProductSuggestions.generate(product);
+            
+            suggestionsDiv.innerHTML = `
+                <div class="suggestion-item">
+                    <strong>التصنيف المقترح:</strong> ${suggestions.suggestedCategory?.ar || 'غير محدد'}
+                </div>
+                <div class="suggestion-item">
+                    <strong>نطاق السعر:</strong> ${suggestions.priceRange?.min} - ${suggestions.priceRange?.max} جنيه
+                </div>
+                <div class="suggestion-item">
+                    <strong>الهامش المقترح:</strong> ${suggestions.suggestedMargin}%
+                </div>
+            `;
+        } catch (e) {
+            suggestionsDiv.innerHTML = '<p>لا توجد اقتراحات</p>';
+        }
+    }
+
+    calculateProfit() {
+        const purchase = parseFloat(document.getElementById('purchasePrice')?.value) || 0;
+        const market = parseFloat(document.getElementById('marketPrice')?.value) || 0;
+        const profit = market - purchase;
+        const margin = purchase > 0 ? (profit / purchase) * 100 : 0;
+
+        const profitEl = document.getElementById('profitValue');
+        const marginEl = document.getElementById('marginValue');
+
+        if (profitEl) profitEl.textContent = profit.toFixed(2);
+        if (marginEl) marginEl.textContent = `(${margin.toFixed(1)}%)`;
+    }
+
+    async saveProduct() {
+        const product = {
+            id: Date.now().toString(),
+            name: document.getElementById('productName')?.value || '',
+            description: document.getElementById('productDesc')?.value || '',
+            purchasePrice: parseFloat(document.getElementById('purchasePrice')?.value) || 0,
+            marketPrice: parseFloat(document.getElementById('marketPrice')?.value) || 0,
+            category: document.getElementById('productCategory')?.value || 'other',
+            stock: parseInt(document.getElementById('productStock')?.value) || 1,
+            images: AppState.currentProduct?.images || [],
+            source: AppState.currentProduct?.source || '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        AppState.products.push(product);
+        this.saveProducts();
+
+        this.showToast('تم حفظ المنتج بنجاح', 'success');
+        this.clearProductForm();
+    }
+
+    saveAndNew() {
+        this.saveProduct();
+        document.getElementById('productUrl').value = '';
+    }
+
+    clearProductForm() {
+        const preview = document.getElementById('productPreview');
+        if (preview) preview.style.display = 'none';
         
-        const results = await bulkEditor.executeBulk(operation, products, options);
-        
-        this.showSuccess(`تم تحديث ${results.success} منتج`);
-        this.clearSelection();
-        this.closeAllModals();
+        document.getElementById('productUrl').value = '';
+        AppState.currentProduct = null;
+    }
+
+    // Products Table
+    renderProducts() {
+        const tbody = document.getElementById('productsTableBody');
+        if (!tbody) return;
+
+        if (AppState.products.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                        <p>لا توجد منتجات</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = AppState.products.map(p => `
+            <tr>
+                <td><input type="checkbox" data-id="${p.id}"></td>
+                <td>
+                    <div class="product-cell">
+                        <strong>${p.name}</strong>
+                        ${p.images[0] ? `<img src="${p.images[0]}" alt="${p.name}" class="product-thumb">` : ''}
+                    </div>
+                </td>
+                <td>${this.getCategoryName(p.category)}</td>
+                <td>${p.purchasePrice} ج</td>
+                <td>${p.marketPrice} ج</td>
+                <td class="${p.marketPrice > p.purchasePrice ? 'text-success' : 'text-danger'}">
+                    ${p.marketPrice - p.purchasePrice} ج
+                </td>
+                <td>
+                    <span class="badge ${p.stock <= 5 ? 'badge-warning' : 'badge-success'}">
+                        ${p.stock}
+                    </span>
+                </td>
+                <td>
+                    <button onclick="app.editProduct('${p.id}')" class="btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
+                    <button onclick="app.deleteProduct('${p.id}')" class="btn-sm btn-danger">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    getCategoryName(cat) {
+        const categories = {
+            'skincare': 'العناية بالبشرة',
+            'hair': 'العناية بالشعر',
+            'health': 'الصحة',
+            'makeup': 'مستحضرات التجميل',
+            'perfume': 'العطور',
+            'other': 'أخرى'
+        };
+        return categories[cat] || cat;
+    }
+
+    filterProducts() {
+        // Implement filtering logic
         this.renderProducts();
     }
 
-    openImportModal() {
-        const modal = document.getElementById('importModal');
-        if (!modal) return;
-        
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📥 استيراد منتجات</h2>
-                    <button onclick="app.closeAllModals()" class="close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="import-options">
-                        <div class="import-option" onclick="document.getElementById('importFile').click()">
-                            <div class="import-icon">📄</div>
-                            <h3>من ملف</h3>
-                            <p>CSV, JSON, Excel</p>
-                        </div>
-                        <div class="import-option" onclick="app.openBulkUrlImport()">
-                            <div class="import-icon">🔗</div>
-                            <h3>من روابط</h3>
-                            <p>استيراد من مواقع متعددة</p>
-                        </div>
-                        <div class="import-option" onclick="app.openExcelImport()">
-                            <div class="import-icon">📊</div>
-                            <h3>من Excel</h3>
-                            <p>ملف أسعار الشراء</p>
-                        </div>
-                    </div>
-                    <input type="file" id="importFile" accept=".csv,.json,.xlsx,.xls" style="display:none" 
-                           onchange="app.handleFileImport(this.files[0])">
-                </div>
-            </div>
-        `;
-        
-        modal.classList.add('active');
+    editProduct(id) {
+        const product = AppState.products.find(p => p.id === id);
+        if (product) {
+            AppState.currentProduct = product;
+            this.showPage('scraper');
+            this.showProductPreview(product);
+        }
     }
 
-    async handleFileImport(file) {
-        if (!file) return;
-        
-        const ext = file.name.split('.').pop().toLowerCase();
-        const type = ext === 'json' ? 'json' : ext === 'csv' ? 'csv' : 'excel';
-        
-        try {
-            this.showLoading('جاري الاستيراد...');
-            
-            const products = await bulkImporter.importFromFile(file, type);
-            
-            for (const product of products) {
-                await this.addProduct(product);
-            }
-            
-            this.hideLoading();
-            this.showSuccess(`تم استيراد ${products.length} منتج`);
-            this.closeAllModals();
+    deleteProduct(id) {
+        if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
+            AppState.products = AppState.products.filter(p => p.id !== id);
+            this.saveProducts();
             this.renderProducts();
-        } catch (error) {
-            this.hideLoading();
-            this.showError('فشل استيراد الملف');
-            console.error(error);
+            this.showToast('تم حذف المنتج', 'success');
         }
     }
 
-    openExportModal() {
-        const modal = document.getElementById('exportModal');
-        if (!modal) return;
-        
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📤 تصدير المنتجات</h2>
-                    <button onclick="app.closeAllModals()" class="close-btn">&times;</button>
+    // Reports
+    renderReports() {
+        const report = analytics.generateReport(AppState.products);
+
+        // Summary
+        const summaryEl = document.getElementById('reportSummary');
+        if (summaryEl) {
+            summaryEl.innerHTML = `
+                <div class="report-stat">
+                    <span>إجمالي المنتجات</span>
+                    <strong>${report.summary.totalProducts}</strong>
                 </div>
-                <div class="modal-body">
-                    <div class="export-options">
-                        <button class="export-option" onclick="app.exportProducts('csv')">
-                            <span class="export-icon">📄</span>
-                            <span>CSV</span>
-                        </button>
-                        <button class="export-option" onclick="app.exportProducts('json')">
-                            <span class="export-icon">📋</span>
-                            <span>JSON</span>
-                        </button>
-                        <button class="export-option" onclick="app.exportProducts('excel')">
-                            <span class="export-icon">📊</span>
-                            <span>Excel</span>
-                        </button>
-                        <button class="export-option" onclick="app.exportProducts('woocommerce')">
-                            <span class="export-icon">🛒</span>
-                            <span>WooCommerce</span>
-                        </button>
-                        <button class="export-option" onclick="app.exportProducts('shopify')">
-                            <span class="export-icon">🏪</span>
-                            <span>Shopify</span>
-                        </button>
-                    </div>
+                <div class="report-stat">
+                    <span>إجمالي القيمة</span>
+                    <strong>${report.summary.totalValue.toFixed(2)} ج</strong>
                 </div>
-            </div>
-        `;
-        
-        modal.classList.add('active');
-    }
-
-    async exportProducts(format) {
-        const products = this.state.selectedProducts.size > 0
-            ? this.state.products.filter(p => this.state.selectedProducts.has(p.id))
-            : this.state.products;
-        
-        try {
-            const content = await bulkExporter.export(products, format);
-            const mimeType = format === 'json' ? 'application/json' : 'text/csv';
-            const ext = format === 'json' ? 'json' : format === 'excel' ? 'xlsx' : 'csv';
-            
-            bulkExporter.download(content, `products.${ext}`, mimeType);
-            this.showSuccess('تم التصدير بنجاح');
-            this.closeAllModals();
-        } catch (error) {
-            this.showError('فشل التصدير');
-            console.error(error);
-        }
-    }
-
-    closeAllModals() {
-        document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
-    }
-
-    // === Dashboard ===
-
-    async loadDashboard() {
-        const stats = analytics.calculateStats(this.state.products);
-        
-        const dashboardEl = document.getElementById('dashboardView');
-        if (!dashboardEl) return;
-        
-        dashboardEl.innerHTML = `
-            <div class="dashboard-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📦</div>
-                    <div class="stat-value">${stats.totalProducts}</div>
-                    <div class="stat-label">إجمالي المنتجات</div>
+                <div class="report-stat">
+                    <span>إجمالي الأرباح</span>
+                    <strong>${report.summary.totalProfit.toFixed(2)} ج</strong>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-value">${stats.totalValue.toFixed(0)}</div>
-                    <div class="stat-label">إجمالي المخزون</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">📈</div>
-                    <div class="stat-value">${stats.avgMargin.toFixed(1)}%</div>
-                    <div class="stat-label">متوسط هامش الربح</div>
-                </div>
-                <div class="stat-card warning">
-                    <div class="stat-icon">⚠️</div>
-                    <div class="stat-value">${stats.lowStockCount}</div>
-                    <div class="stat-label">منتجات قليلة المخزون</div>
-                </div>
-                
-                <div class="chart-card wide">
-                    <h3>توزيع الفئات</h3>
-                    <canvas id="categoryChart"></canvas>
-                </div>
-                <div class="chart-card">
-                    <h3>توزيع الأسعار</h3>
-                    <canvas id="priceChart"></canvas>
-                </div>
-            </div>
-        `;
-        
-        // Render charts
-        this.renderCharts(stats);
-    }
-
-    renderCharts(stats) {
-        // Category distribution
-        const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
-        if (categoryCtx && stats.byCategory) {
-            new Chart(categoryCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(stats.byCategory),
-                    datasets: [{
-                        data: Object.values(stats.byCategory),
-                        backgroundColor: [
-                            '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
-                            '#3b82f6', '#ef4444', '#84cc16'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'right'
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    // === UI Helpers ===
-
-    toggleTheme() {
-        const newTheme = this.state.settings.theme === 'dark' ? 'light' : 'dark';
-        this.state.settings.theme = newTheme;
-        this.applyTheme(newTheme);
-        configManager.set('ui.theme', newTheme);
-    }
-
-    showLoading(message = 'جاري التحميل...') {
-        const loader = document.getElementById('loader');
-        if (loader) {
-            loader.querySelector('.loader-text').textContent = message;
-            loader.classList.add('active');
-        }
-    }
-
-    hideLoading() {
-        const loader = document.getElementById('loader');
-        if (loader) loader.classList.remove('active');
-    }
-
-    showSuccess(message) {
-        this.showToast(message, 'success');
-    }
-
-    showError(message) {
-        this.showToast(message, 'error');
-    }
-
-    showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.innerHTML = `
-            <span class="toast-icon">${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}</span>
-            <span class="toast-message">${message}</span>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => toast.classList.add('show'), 10);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-
-    renderLoading() {
-        const container = document.getElementById('productsGrid');
-        if (container) {
-            container.innerHTML = `
-                <div class="loading-state">
-                    <div class="spinner"></div>
-                    <p>جاري تحميل المنتجات...</p>
+                <div class="report-stat">
+                    <span>متوسط الهامش</span>
+                    <strong>${report.summary.avgMargin.toFixed(1)}%</strong>
                 </div>
             `;
         }
+
+        // Category Breakdown
+        const catEl = document.getElementById('categoryBreakdown');
+        if (catEl) {
+            const breakdown = Object.entries(report.categoryBreakdown)
+                .map(([cat, data]) => `
+                    <div class="category-item">
+                        <span>${this.getCategoryName(cat)}</span>
+                        <span>${data.count} منتج</span>
+                        <span>${data.profit.toFixed(2)} ج ربح</span>
+                    </div>
+                `).join('');
+            catEl.innerHTML = breakdown || '<p>لا توجد بيانات</p>';
+        }
+
+        // Profit Analysis
+        const profitEl = document.getElementById('profitAnalysis');
+        if (profitEl) {
+            const topProducts = report.topProducts.slice(0, 5)
+                .map(p => `
+                    <div class="profit-item">
+                        <span>${p.name}</span>
+                        <span class="profit-value">${p.profit.toFixed(2)} ج</span>
+                    </div>
+                `).join('');
+            profitEl.innerHTML = topProducts || '<p>لا توجد بيانات</p>';
+        }
+
+        // Margin Distribution
+        const marginEl = document.getElementById('marginDistribution');
+        if (marginEl) {
+            const distribution = report.marginDistribution
+                .map(r => `
+                    <div class="margin-bar">
+                        <span>${r.label}</span>
+                        <div class="bar">
+                            <div class="bar-fill" style="width: ${(r.count / AppState.products.length * 100) || 0}%"></div>
+                        </div>
+                        <span>${r.count}</span>
+                    </div>
+                `).join('');
+            marginEl.innerHTML = distribution || '<p>لا توجد بيانات</p>';
+        }
+    }
+
+    // QR Scanner
+    async startQRScanner() {
+        this.showModal(`
+            <div class="modal-header">
+                <h3>QR Scanner</h3>
+                <button onclick="app.closeModal()" class="btn-close">×</button>
+            </div>
+            <div class="modal-body">
+                <video id="qr-video" width="100%" autoplay></video>
+                <div id="qr-result" style="margin-top: 15px;"></div>
+            </div>
+        `);
+
+        try {
+            await qrScanner.start('qr-video', (result) => {
+                document.getElementById('qr-result').innerHTML = `
+                    <p>النتيجة: ${result}</p>
+                    <button onclick="app.searchByBarcode('${result}')" class="btn primary">بحث عن المنتج</button>
+                `;
+            });
+        } catch (e) {
+            document.getElementById('qr-result').innerHTML = `<p class="error">خطأ: ${e.message}</p>`;
+        }
+    }
+
+    // Voice Search
+    async startVoiceSearch() {
+        this.showModal(`
+            <div class="modal-header">
+                <h3>بحث صوتي</h3>
+                <button onclick="app.closeModal()" class="btn-close">×</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div id="voice-status">
+                    <div class="mic-icon">🎤</div>
+                    <p>اضغط للبدء</p>
+                </div>
+                <button id="voice-btn" onclick="app.toggleVoice()" class="btn primary">بدء التسجيل</button>
+                <div id="voice-result" style="margin-top: 15px;"></div>
+            </div>
+        `);
+    }
+
+    async toggleVoice() {
+        const btn = document.getElementById('voice-btn');
+        const status = document.getElementById('voice-status');
+
+        if (voiceSearch.isListening) {
+            voiceSearch.stop();
+            btn.textContent = 'بدء التسجيل';
+            status.innerHTML = '<div class="mic-icon">🎤</div><p>اضغط للبدء</p>';
+        } else {
+            try {
+                await voiceSearch.start((result) => {
+                    document.getElementById('voice-result').innerHTML = `
+                        <p>النتيجة: ${result}</p>
+                    `;
+                    document.getElementById('searchProducts').value = result;
+                    this.filterProducts();
+                });
+                btn.textContent = 'إيقاف';
+                status.innerHTML = '<div class="mic-icon recording">🔴</div><p>جاري الاستماع...</p>';
+            } catch (e) {
+                status.innerHTML = `<p class="error">خطأ: ${e.message}</p>`;
+            }
+        }
+    }
+
+    // Bulk Edit
+    showBulkEdit() {
+        this.showModal(`
+            <div class="modal-header">
+                <h3>تعديل جماعي</h3>
+                <button onclick="app.closeModal()" class="btn-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>العملية</label>
+                    <select id="bulkOperation" class="input">
+                        <option value="increase">زيادة الأسعار</option>
+                        <option value="decrease">تخفيض الأسعار</option>
+                        <option value="category">تغيير التصنيف</option>
+                        <option value="delete">حذف المحدد</option>
+                    </select>
+                </div>
+                <div class="form-group" id="bulkValueGroup">
+                    <label>القيمة</label>
+                    <input type="number" id="bulkValue" class="input" placeholder="أدخل القيمة">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="app.closeModal()" class="btn">إلغاء</button>
+                <button onclick="app.executeBulkEdit()" class="btn primary">تنفيذ</button>
+            </div>
+        `);
+    }
+
+    executeBulkEdit() {
+        const operation = document.getElementById('bulkOperation').value;
+        const value = parseFloat(document.getElementById('bulkValue').value) || 0;
+
+        const selected = AppState.products.filter(p => {
+            const checkbox = document.querySelector(`input[data-id="${p.id}"]`);
+            return checkbox?.checked;
+        });
+
+        if (selected.length === 0) {
+            this.showToast('الرجاء تحديد منتجات', 'warning');
+            return;
+        }
+
+        switch (operation) {
+            case 'increase':
+                selected.forEach(p => {
+                    p.marketPrice *= (1 + value / 100);
+                });
+                break;
+            case 'decrease':
+                selected.forEach(p => {
+                    p.marketPrice *= (1 - value / 100);
+                });
+                break;
+            case 'category':
+                selected.forEach(p => {
+                    p.category = document.getElementById('productCategory').value;
+                });
+                break;
+            case 'delete':
+                AppState.products = AppState.products.filter(p => !selected.includes(p));
+                break;
+        }
+
+        this.saveProducts();
+        this.renderProducts();
+        this.closeModal();
+        this.showToast(`تم تنفيذ العملية على ${selected.length} منتج`, 'success');
+    }
+
+    // Export
+    async exportProducts() {
+        if (AppState.products.length === 0) {
+            this.showToast('لا توجد منتجات للتصدير', 'warning');
+            return;
+        }
+
+        const data = AppState.products.map(p => ({
+            'الاسم': p.name,
+            'الوصف': p.description,
+            'سعر الشراء': p.purchasePrice,
+            'سعر البيع': p.marketPrice,
+            'الربح': p.marketPrice - p.purchasePrice,
+            'التصنيف': this.getCategoryName(p.category),
+            'المخزون': p.stock
+        }));
+
+        // Create CSV
+        const headers = Object.keys(data[0]);
+        const csv = [
+            headers.join(','),
+            ...data.map(row => headers.map(h => `"${row[h]}"`).join(','))
+        ].join('\n');
+
+        // Download
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        this.showToast('تم تصدير المنتجات', 'success');
+    }
+
+    // Stats
+    updateStats() {
+        const totalEl = document.getElementById('totalProducts');
+        const profitEl = document.getElementById('totalProfit');
+        const stockEl = document.getElementById('lowStock');
+        const marginEl = document.getElementById('avgMargin');
+
+        if (totalEl) totalEl.textContent = AppState.products.length;
+
+        const totalProfit = AppState.products.reduce((sum, p) => 
+            sum + (p.marketPrice - p.purchasePrice), 0);
+        if (profitEl) profitEl.textContent = totalProfit.toFixed(0);
+
+        const lowStock = AppState.products.filter(p => p.stock <= 5).length;
+        if (stockEl) stockEl.textContent = lowStock;
+
+        const avgMargin = AppState.products.length > 0 ? 
+            AppState.products.reduce((sum, p) => {
+                const margin = p.purchasePrice > 0 ? 
+                    ((p.marketPrice - p.purchasePrice) / p.purchasePrice) * 100 : 0;
+                return sum + margin;
+            }, 0) / AppState.products.length : 0;
+        if (marginEl) marginEl.textContent = avgMargin.toFixed(0) + '%';
+    }
+
+    // Progress
+    showProgress(text) {
+        const progress = document.getElementById('scrapeProgress');
+        const progressText = document.getElementById('progressText');
+        if (progress) {
+            progress.style.display = 'block';
+            if (progressText) progressText.textContent = text;
+        }
+        AppState.isLoading = true;
+    }
+
+    hideProgress() {
+        const progress = document.getElementById('scrapeProgress');
+        if (progress) progress.style.display = 'none';
+        AppState.isLoading = false;
+    }
+
+    // Modal
+    showModal(content) {
+        const overlay = document.getElementById('modalOverlay');
+        const modal = document.getElementById('modalContent');
+        if (overlay && modal) {
+            modal.innerHTML = content;
+            overlay.classList.add('active');
+        }
+    }
+
+    closeModal(event) {
+        if (event && event.target !== event.currentTarget) return;
+        const overlay = document.getElementById('modalOverlay');
+        if (overlay) overlay.classList.remove('active');
+    }
+
+    // Toast
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span>${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    // Select All
+    toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('#productsTableBody input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = selectAll?.checked);
     }
 }
 
 // Initialize app
-let app;
-
-document.addEventListener('DOMContentLoaded', () => {
-    app = new App();
-    window.app = app;
-});
+const app = new App();
+window.app = app;
 
 // Export
 export { app, AppState };

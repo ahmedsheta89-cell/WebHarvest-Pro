@@ -5,263 +5,401 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="WebHarvest Pro - أداة إدارة المنتجات الاحترافية">
     <meta name="theme-color" content="#6366f1">
-    
     <title>WebHarvest Pro</title>
-    
+
+    <!-- Preload Critical CSS -->
+    <link rel="preload" href="styles/main.css" as="style">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" as="style">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap">
+
+    <!-- Lucide Icons (Lightweight Alternative to Font Awesome) -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- SheetJS -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    
-    <!-- Styles -->
-    <link rel="stylesheet" href="styles/main.css">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Prevent Flash of Unstyled Content -->
+    <style>
+        html { visibility: hidden; }
+        html.loaded { visibility: visible; }
+    </style>
+
+    <!-- Critical CSS Inline -->
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e1e2e;
+            --darker: #181825;
+            --light: #f8fafc;
+            --gray: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
-<body class="theme-dark">
-    <!-- Loader -->
-    <div id="loader" class="loader">
-        <div class="spinner"></div>
-        <p class="loader-text">جاري التحميل...</p>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader"></div>
     </div>
 
-    <!-- Main Container -->
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <span class="logo-icon">🌾</span>
-                    <span class="logo-text">WebHarvest Pro</span>
-                </div>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">⬡</span>
+                <span class="logo-text">WebHarvest Pro</span>
             </div>
-            
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-view="dashboard">
-                    <i class="fas fa-home"></i>
+            <nav class="nav">
+                <a href="#" class="nav-link active" data-page="home">
+                    <i data-lucide="home"></i>
                     <span>الرئيسية</span>
                 </a>
-                <a href="#" class="nav-item" data-view="products">
-                    <i class="fas fa-box"></i>
+                <a href="#" class="nav-link" data-page="products">
+                    <i data-lucide="package"></i>
                     <span>المنتجات</span>
                 </a>
-                <a href="#" class="nav-item" data-view="scraper">
-                    <i class="fas fa-spider"></i>
-                    <span>السكرابر</span>
+                <a href="#" class="nav-link" data-page="scraper">
+                    <i data-lucide="globe"></i>
+                    <span>السحب</span>
                 </a>
-                <a href="#" class="nav-item" data-view="analytics">
-                    <i class="fas fa-chart-bar"></i>
+                <a href="#" class="nav-link" data-page="reports">
+                    <i data-lucide="bar-chart-2"></i>
                     <span>التقارير</span>
                 </a>
-                <a href="#" class="nav-item" data-view="templates">
-                    <i class="fas fa-copy"></i>
-                    <span>القوالب</span>
-                </a>
-                <a href="#" class="nav-item" data-view="history">
-                    <i class="fas fa-history"></i>
-                    <span>السجل</span>
+                <a href="pages/settings.html" class="nav-link">
+                    <i data-lucide="settings"></i>
+                    <span>الإعدادات</span>
                 </a>
             </nav>
-            
-            <div class="sidebar-footer">
-                <button id="settingsBtn" class="nav-item">
-                    <i class="fas fa-cog"></i>
-                    <span>الإعدادات</span>
-                </button>
-                <button id="themeToggle" class="theme-toggle">
-                    <i class="fas fa-moon"></i>
-                </button>
-            </div>
-        </aside>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="header">
-                <div class="search-container">
-                    <input type="text" id="searchInput" placeholder="بحث عن منتج... (Ctrl+K)">
-                    <button id="voiceSearchBtn" class="voice-btn" title="بحث صوتي">
-                        <i class="fas fa-microphone"></i>
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Home Page -->
+        <section class="page active" id="homePage">
+            <div class="container">
+                <div class="hero">
+                    <h1>WebHarvest Pro</h1>
+                    <p>أداة إدارة المنتجات الاحترافية</p>
+                    <p class="hero-subtitle">سحب • تحليل • تصدير</p>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i data-lucide="package"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="totalProducts">0</span>
+                            <span class="stat-label">منتج</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success"><i data-lucide="trending-up"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="totalProfit">0</span>
+                            <span class="stat-label">ربح</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning"><i data-lucide="alert-triangle"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="lowStock">0</span>
+                            <span class="stat-label">نفاد المخزون</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon info"><i data-lucide="percent"></i></div>
+                        <div class="stat-content">
+                            <span class="stat-value" id="avgMargin">0%</span>
+                            <span class="stat-label">متوسط الهامش</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="actions-grid">
+                    <button class="action-card" onclick="app.showPage('scraper')">
+                        <i data-lucide="globe"></i>
+                        <span>سحب منتج</span>
                     </button>
-                    <button id="qrScannerBtn" class="qr-btn" title="مسح باركود">
-                        <i class="fas fa-qrcode"></i>
+                    <button class="action-card" onclick="app.startQRScanner()">
+                        <i data-lucide="scan-line"></i>
+                        <span>QR Scanner</span>
+                    </button>
+                    <button class="action-card" onclick="app.startVoiceSearch()">
+                        <i data-lucide="mic"></i>
+                        <span>بحث صوتي</span>
+                    </button>
+                    <button class="action-card" onclick="app.showBulkEdit()">
+                        <i data-lucide="layers"></i>
+                        <span>تعديل جماعي</span>
                     </button>
                 </div>
-                
-                <div class="header-actions">
-                    <button id="importBtn" class="btn-secondary">
-                        <i class="fas fa-download"></i>
-                        استيراد
-                    </button>
-                    <button id="exportBtn" class="btn-secondary">
-                        <i class="fas fa-upload"></i>
-                        تصدير
-                    </button>
-                    <button id="bulkActionsBtn" class="btn-secondary" disabled>
-                        <i class="fas fa-tasks"></i>
-                        إجراءات جماعية (0)
-                    </button>
-                    <button id="addProductBtn" class="btn-primary">
-                        <i class="fas fa-plus"></i>
-                        إضافة منتج
-                    </button>
+            </div>
+        </section>
+
+        <!-- Scraper Page -->
+        <section class="page" id="scraperPage">
+            <div class="container">
+                <h2 class="page-title">سحب المنتجات</h2>
+
+                <!-- URL Input -->
+                <div class="card">
+                    <div class="form-group">
+                        <label>رابط المنتج</label>
+                        <div class="input-group">
+                            <input type="url" id="productUrl" placeholder="https://..." class="input">
+                            <button onclick="app.scrapeProduct()" class="btn primary">
+                                <i data-lucide="download"></i>
+                                سحب
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress -->
+                    <div class="progress-container" id="scrapeProgress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p class="progress-text" id="progressText">جاري السحب...</p>
+                    </div>
                 </div>
-            </header>
 
-            <!-- Views Container -->
-            <div class="views-container">
-                <!-- Dashboard View -->
-                <section id="dashboardView" class="view">
-                    <div class="view-header">
-                        <h1>لوحة التحكم</h1>
-                    </div>
-                    <div id="dashboardContent" class="dashboard-grid">
-                        <!-- سيتم ملؤها ديناميكياً -->
-                    </div>
-                </section>
-
-                <!-- Products View -->
-                <section id="productsView" class="view hidden">
-                    <div class="view-header">
-                        <h1>المنتجات</h1>
-                        <div class="view-actions">
-                            <select id="categoryFilter" class="filter-select">
-                                <option value="">كل الفئات</option>
-                            </select>
-                            <select id="statusFilter" class="filter-select">
-                                <option value="">كل الحالات</option>
-                                <option value="active">نشط</option>
-                                <option value="inactive">غير نشط</option>
-                                <option value="out_of_stock">نفذ من المخزون</option>
-                            </select>
-                            <button onclick="app.selectAllProducts()" class="btn-sm">
-                                تحديد الكل
-                            </button>
-                            <button onclick="app.clearSelection()" class="btn-sm">
-                                إلغاء التحديد
-                            </button>
-                        </div>
-                    </div>
-                    <div id="productsGrid" class="products-grid">
-                        <!-- سيتم ملؤها ديناميكياً -->
-                    </div>
-                </section>
-
-                <!-- Scraper View -->
-                <section id="scraperView" class="view hidden">
-                    <div class="view-header">
-                        <h1>سحب المنتجات</h1>
-                    </div>
-                    <div class="scraper-container">
-                        <div class="scraper-form">
+                <!-- Product Preview -->
+                <div class="card" id="productPreview" style="display: none;">
+                    <h3>معاينة المنتج</h3>
+                    <div class="product-preview-content">
+                        <div class="product-images" id="productImages"></div>
+                        <div class="product-info">
                             <div class="form-group">
-                                <label>رابط المنتج</label>
-                                <input type="url" id="scraperUrl" placeholder="الصق رابط المنتج من أي موقع">
+                                <label>اسم المنتج</label>
+                                <input type="text" id="productName" class="input">
                             </div>
                             <div class="form-group">
-                                <label>نوع الموقع (اختياري)</label>
-                                <select id="scraperType">
-                                    <option value="auto">اكتشاف تلقائي</option>
-                                    <option value="shopify">Shopify</option>
-                                    <option value="woocommerce">WooCommerce</option>
-                                    <option value="magento">Magento</option>
-                                    <option value="custom">مخصص</option>
-                                </select>
+                                <label>الوصف</label>
+                                <textarea id="productDesc" class="input" rows="3"></textarea>
                             </div>
-                            <button onclick="app.scrapeSingleUrl()" class="btn-primary">
-                                <i class="fas fa-spider"></i>
-                                سحب البيانات
-                            </button>
-                        </div>
-                        
-                        <div class="bulk-scraper">
-                            <h3>سحب متعدد</h3>
-                            <textarea id="bulkUrls" placeholder="أدخل روابط متعددة (كل رابط في سطر)"></textarea>
-                            <button onclick="app.scrapeBulkUrls()" class="btn-secondary">
-                                سحب الكل
-                            </button>
-                        </div>
-                        
-                        <div id="scraperResults" class="scraper-results">
-                            <!-- النتائج ستظهر هنا -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>سعر الشراء</label>
+                                    <input type="number" id="purchasePrice" class="input" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>سعر السوق</label>
+                                    <input type="number" id="marketPrice" class="input" placeholder="0">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>التصنيف</label>
+                                    <select id="productCategory" class="input">
+                                        <option value="">اختر التصنيف</option>
+                                        <option value="skincare">العناية بالبشرة</option>
+                                        <option value="hair">العناية بالشعر</option>
+                                        <option value="health">الصحة</option>
+                                        <option value="makeup">مستحضرات التجميل</option>
+                                        <option value="perfume">العطور</option>
+                                        <option value="other">أخرى</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>الكمية</label>
+                                    <input type="number" id="productStock" class="input" value="1">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>الربح المتوقع</label>
+                                <div class="profit-display">
+                                    <span id="profitValue">0</span> جنيه
+                                    <span id="marginValue">(0%)</span>
+                                </div>
+                            </div>
+                            <!-- AI Suggestions -->
+                            <div class="ai-suggestions" id="aiSuggestions">
+                                <h4><i data-lucide="sparkles"></i> اقتراحات AI</h4>
+                                <div id="aiContent"></div>
+                            </div>
+                            <div class="form-actions">
+                                <button onclick="app.saveProduct()" class="btn success">
+                                    <i data-lucide="save"></i>
+                                    حفظ المنتج
+                                </button>
+                                <button onclick="app.saveAndNew()" class="btn">
+                                    <i data-lucide="plus"></i>
+                                    حفظ وإضافة جديد
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </section>
+                </div>
+            </div>
+        </section>
 
-                <!-- Analytics View -->
-                <section id="analyticsView" class="view hidden">
-                    <div class="view-header">
-                        <h1>التقارير والإحصائيات</h1>
-                    </div>
-                    <div id="analyticsContent">
-                        <!-- سيتم ملؤها ديناميكياً -->
-                    </div>
-                </section>
+        <!-- Products Page -->
+        <section class="page" id="productsPage">
+            <div class="container">
+                <h2 class="page-title">المنتجات</h2>
 
-                <!-- Templates View -->
-                <section id="templatesView" class="view hidden">
-                    <div class="view-header">
-                        <h1>قوالب المنتجات</h1>
-                        <button onclick="app.openCreateTemplateModal()" class="btn-primary">
-                            <i class="fas fa-plus"></i>
-                            قالب جديد
+                <!-- Filters -->
+                <div class="card">
+                    <div class="filters-row">
+                        <div class="search-box">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="searchProducts" placeholder="بحث..." class="input" oninput="app.filterProducts()">
+                        </div>
+                        <select id="categoryFilter" class="input" onchange="app.filterProducts()">
+                            <option value="">كل التصنيفات</option>
+                            <option value="skincare">العناية بالبشرة</option>
+                            <option value="hair">العناية بالشعر</option>
+                            <option value="health">الصحة</option>
+                            <option value="makeup">مستحضرات التجميل</option>
+                            <option value="perfume">العطور</option>
+                        </select>
+                        <select id="statusFilter" class="input" onchange="app.filterProducts()">
+                            <option value="">كل الحالات</option>
+                            <option value="active">متوفر</option>
+                            <option value="low">مخزون منخفض</option>
+                            <option value="out">نفد المخزون</option>
+                        </select>
+                        <button onclick="app.exportProducts()" class="btn">
+                            <i data-lucide="download"></i>
+                            تصدير
                         </button>
                     </div>
-                    <div id="templatesGrid" class="templates-grid">
-                        <!-- سيتم ملؤها ديناميكياً -->
-                    </div>
-                </section>
+                </div>
 
-                <!-- History View -->
-                <section id="historyView" class="view hidden">
-                    <div class="view-header">
-                        <h1>سجل العمليات</h1>
-                        <button onclick="app.clearHistory()" class="btn-secondary">
-                            <i class="fas fa-trash"></i>
-                            مسح السجل
-                        </button>
-                    </div>
-                    <div id="historyList" class="history-list">
-                        <!-- سيتم ملؤها ديناميكياً -->
-                    </div>
-                </section>
+                <!-- Products Table -->
+                <div class="card">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAll" onchange="app.toggleSelectAll()"></th>
+                                <th>المنتج</th>
+                                <th>التصنيف</th>
+                                <th>سعر الشراء</th>
+                                <th>سعر البيع</th>
+                                <th>الربح</th>
+                                <th>المخزون</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr>
+                                <td colspan="8" class="empty-state">
+                                    <i data-lucide="package"></i>
+                                    <p>لا توجد منتجات</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </main>
-    </div>
+        </section>
 
-    <!-- Modals -->
-    <div id="addProductModal" class="modal"></div>
-    <div id="settingsModal" class="modal"></div>
-    <div id="importModal" class="modal"></div>
-    <div id="exportModal" class="modal"></div>
-    <div id="bulkActionsModal" class="modal"></div>
-    <div id="qrScannerModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>📷 مسح الباركود</h2>
-                <button onclick="app.closeAllModals()" class="close-btn">&times;</button>
+        <!-- Reports Page -->
+        <section class="page" id="reportsPage">
+            <div class="container">
+                <h2 class="page-title">التقارير</h2>
+
+                <div class="reports-grid">
+                    <!-- Summary Card -->
+                    <div class="card report-card">
+                        <h3>ملخص عام</h3>
+                        <div id="reportSummary"></div>
+                    </div>
+
+                    <!-- Category Breakdown -->
+                    <div class="card report-card">
+                        <h3>حسب التصنيف</h3>
+                        <div id="categoryBreakdown"></div>
+                    </div>
+
+                    <!-- Profit Analysis -->
+                    <div class="card report-card">
+                        <h3>تحليل الأرباح</h3>
+                        <div id="profitAnalysis"></div>
+                    </div>
+
+                    <!-- Margin Distribution -->
+                    <div class="card report-card">
+                        <h3>توزيع الهامش</h3>
+                        <div id="marginDistribution"></div>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                <video id="qrVideo" autoplay playsinline></video>
-                <canvas id="qrCanvas" style="display:none;"></canvas>
-                <p>وجّه الكاميرا نحو الباركود أو QR Code</p>
-            </div>
+        </section>
+    </main>
+
+    <!-- Modal Container -->
+    <div class="modal-overlay" id="modalOverlay" onclick="app.closeModal(event)">
+        <div class="modal" id="modalContent" onclick="event.stopPropagation()">
+            <!-- Modal content will be inserted here -->
         </div>
     </div>
 
     <!-- Toast Container -->
-    <div id="toastContainer" class="toast-container"></div>
+    <div class="toast-container" id="toastContainer"></div>
 
-    <!-- App Script -->
-    <script type="module" src="src/app.js"></script>
+    <!-- Scripts -->
+    <script type="module">
+        import { app } from './src/app.js';
+        window.app = app;
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Hide loading screen
+        window.addEventListener('load', () => {
+            document.documentElement.classList.add('loaded');
+            document.getElementById('loadingScreen').style.display = 'none';
+        });
+    </script>
 </body>
 </html>
