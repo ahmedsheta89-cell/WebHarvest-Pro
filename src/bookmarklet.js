@@ -1,653 +1,585 @@
 /**
- * WebHarvest Pro - Bookmarklet (Production)
- * يعمل على أي موقع ويستخرج المنتجات
+ * WebHarvest Pro - Bookmarklet
+ * سكرابر يعمل من المتصفح مباشرة
+ * 
+ * ⚠️ ملاحظة مهمة:
+ * localStorage و BroadcastChannel لا يعملان بين domains مختلفة
+ * الحل: فتح WebHarvest Pro في tab جديدة مع البيانات في URL
  */
 
 (function() {
     'use strict';
-    
-    // التأكد من عدم التشغيل المتكرر
+
+    // Prevent multiple instances
     if (window.__webharvest_running) {
-        alert('WebHarvest Pro يعمل بالفعل!');
+        alert('⚠️ WebHarvest Pro يعمل بالفعل!');
         return;
     }
     window.__webharvest_running = true;
-    
-    console.log('[WebHarvest] Starting Bookmarklet...');
-    
-    // ==================== Configuration ====================
+
+    // Configuration
     const CONFIG = {
-        targetOrigin: 'https://ahmedsheta89-cell.github.io',
-        targetPath: '/WebHarvest-Pro/',
-        storageKey: 'webharvest_products_data'
+        webharvestUrl: 'https://ahmedsheta89-cell.github.io/WebHarvest-Pro/',
+        maxProducts: 1000,
+        timeout: 30000
     };
-    
-    // ==================== Product Detection ====================
-    const ProductDetector = {
-        // قوالب اكتشاف المنتجات
-        patterns: {
-            productCard: [
-                '[class*="product"]',
-                '[class*="item"]',
-                '[class*="card"]',
-                '[data-product-id]',
-                '[data-product]',
-                '[itemtype*="Product"]'
-            ],
-            name: [
-                'h1', 'h2', 'h3',
-                '[class*="title"]',
-                '[class*="name"]',
-                '[itemprop="name"]',
-                'a[title]'
-            ],
-            price: [
-                '[class*="price"]',
-                '[itemprop="price"]',
-                '[data-price]'
-            ],
-            image: [
-                'img',
-                '[class*="image"]',
-                '[itemprop="image"]'
-            ],
-            link: [
-                'a[href*="product"]',
-                'a[href*="item"]',
-                'a[href*="p-"]'
-            ]
-        },
-        
-        // اكتشاف المنتجات في الصفحة
-        detectProducts() {
-            const products = [];
-            const seen = new Set();
-            
-            // البحث عن كروت المنتجات
-            for (const pattern of this.patterns.productCard) {
-                const elements = document.querySelectorAll(pattern);
+
+    // State
+    let selectedProducts = [];
+    let mode = 'auto'; // 'auto' or 'manual'
+    let overlay = null;
+
+    // Create Overlay UI
+    function createOverlay() {
+        // Remove existing overlay if any
+        const existing = document.getElementById('webharvest-overlay');
+        if (existing) existing.remove();
+
+        // Create overlay
+        overlay = document.createElement('div');
+        overlay.id = 'webharvest-overlay';
+        overlay.innerHTML = `
+            <style>
+                #webharvest-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.9);
+                    z-index: 2147483647;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    direction: rtl;
+                    overflow-y: auto;
+                }
+                #webharvest-container {
+                    max-width: 800px;
+                    margin: 50px auto;
+                    padding: 30px;
+                    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+                    border-radius: 20px;
+                    box-shadow: 0 25px 80px rgba(99, 102, 241, 0.4);
+                }
+                #webharvest-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid rgba(255,255,255,0.2);
+                }
+                #webharvest-title {
+                    font-size: 28px;
+                    color: white;
+                    margin: 0;
+                }
+                #webharvest-close {
+                    background: #ef4444;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    font-weight: bold;
+                }
+                #webharvest-close:hover {
+                    background: #dc2626;
+                }
+                #webharvest-stats {
+                    display: flex;
+                    gap: 20px;
+                    margin-bottom: 30px;
+                }
+                .stat-card {
+                    flex: 1;
+                    background: rgba(255,255,255,0.1);
+                    padding: 20px;
+                    border-radius: 15px;
+                    text-align: center;
+                }
+                .stat-value {
+                    font-size: 36px;
+                    color: #a5f3fc;
+                    font-weight: bold;
+                }
+                .stat-label {
+                    color: #cbd5e1;
+                    font-size: 14px;
+                    margin-top: 5px;
+                }
+                #webharvest-mode {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 20px;
+                }
+                .mode-btn {
+                    flex: 1;
+                    padding: 15px;
+                    border: 2px solid rgba(255,255,255,0.2);
+                    background: transparent;
+                    color: white;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    transition: all 0.3s;
+                }
+                .mode-btn.active {
+                    background: #6366f1;
+                    border-color: #6366f1;
+                }
+                .mode-btn:hover {
+                    border-color: #6366f1;
+                }
+                #webharvest-products {
+                    max-height: 300px;
+                    overflow-y: auto;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 15px;
+                    padding: 15px;
+                    margin-bottom: 20px;
+                }
+                .product-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 15px;
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 10px;
+                    margin-bottom: 10px;
+                    border: 2px solid transparent;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                }
+                .product-item:hover {
+                    background: rgba(99, 102, 241, 0.2);
+                }
+                .product-item.selected {
+                    border-color: #10b981;
+                    background: rgba(16, 185, 129, 0.2);
+                }
+                .product-name {
+                    color: white;
+                    font-size: 16px;
+                }
+                .product-price {
+                    color: #a5f3fc;
+                    font-weight: bold;
+                }
+                #webharvest-actions {
+                    display: flex;
+                    gap: 15px;
+                }
+                .action-btn {
+                    flex: 1;
+                    padding: 20px;
+                    border: none;
+                    border-radius: 15px;
+                    cursor: pointer;
+                    font-size: 18px;
+                    font-weight: bold;
+                    transition: all 0.3s;
+                }
+                #send-btn {
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    color: white;
+                }
+                #send-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+                }
+                #send-btn:disabled {
+                    background: #4b5563;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+                #cancel-btn {
+                    background: #4b5563;
+                    color: white;
+                }
+                #cancel-btn:hover {
+                    background: #374151;
+                }
+                .loader {
+                    display: inline-block;
+                    width: 20px;
+                    height: 20px;
+                    border: 3px solid rgba(255,255,255,0.3);
+                    border-radius: 50%;
+                    border-top-color: white;
+                    animation: spin 1s ease-in-out infinite;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            </style>
+            <div id="webharvest-container">
+                <div id="webharvest-header">
+                    <h1 id="webharvest-title">🛒 WebHarvest Pro</h1>
+                    <button id="webharvest-close">✕ إغلاق</button>
+                </div>
                 
-                elements.forEach(el => {
-                    // تجنب العناصر المكررة
-                    const key = el.outerHTML.slice(0, 100);
-                    if (seen.has(key)) return;
-                    seen.add(key);
-                    
-                    // تجنب العناصر الصغيرة جداً
-                    const rect = el.getBoundingClientRect();
-                    if (rect.width < 50 || rect.height < 50) return;
-                    
-                    // استخراج البيانات
-                    const product = this.extractProductData(el);
-                    if (product && product.name) {
-                        products.push(product);
-                    }
-                });
-            }
-            
-            return products;
-        },
-        
-        // استخراج بيانات منتج واحد
-        extractProductData(element) {
-            // الاسم
-            let name = '';
-            for (const pattern of this.patterns.name) {
-                const el = element.querySelector(pattern);
-                if (el && el.textContent.trim()) {
-                    name = el.textContent.trim();
-                    break;
-                }
-            }
-            
-            // السعر
-            let price = 0;
-            for (const pattern of this.patterns.price) {
-                const el = element.querySelector(pattern);
-                if (el) {
-                    const text = el.textContent || el.value || '';
-                    const match = text.match(/[\d,]+\.?\d*/);
-                    if (match) {
-                        price = parseFloat(match[0].replace(/,/g, ''));
-                        break;
-                    }
-                }
-            }
-            
-            // الصور
-            const images = [];
-            for (const pattern of this.patterns.image) {
-                const els = element.querySelectorAll(pattern);
-                els.forEach(img => {
-                    const src = img.src || img.dataset.src || img.dataset.lazySrc;
-                    if (src && !images.includes(src)) {
-                        images.push(src);
-                    }
-                });
-            }
-            
-            // الرابط
-            let link = '';
-            for (const pattern of this.patterns.link) {
-                const el = element.querySelector(pattern);
-                if (el && el.href) {
-                    link = el.href;
-                    break;
-                }
-            }
-            
-            return {
-                id: Date.now() + Math.random().toString(36).substr(2, 9),
-                name: name,
-                price: price,
-                images: images.slice(0, 5),
-                link: link || window.location.href,
-                source: window.location.hostname,
-                scrapedAt: new Date().toISOString()
-            };
-        }
-    };
-    
-    // ==================== UI Manager ====================
-    const UIManager = {
-        overlay: null,
-        mode: 'multi', // 'single', 'multi', 'all'
-        selectedProducts: [],
-        detectedProducts: [],
-        
-        create() {
-            // حذف أي overlay قديم
-            const oldOverlay = document.getElementById('webharvest-overlay');
-            if (oldOverlay) oldOverlay.remove();
-            
-            // إنشاء الـ overlay
-            this.overlay = document.createElement('div');
-            this.overlay.id = 'webharvest-overlay';
-            this.overlay.innerHTML = `
-                <style>
-                    #webharvest-overlay {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background: rgba(0, 0, 0, 0.85);
-                        z-index: 2147483647;
-                        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-                        direction: rtl;
-                    }
-                    
-                    .wh-modal {
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-                        border-radius: 20px;
-                        padding: 30px;
-                        width: 90%;
-                        max-width: 600px;
-                        max-height: 80vh;
-                        overflow: hidden;
-                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-                        border: 1px solid rgba(139, 92, 246, 0.3);
-                    }
-                    
-                    .wh-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 20px;
-                        padding-bottom: 15px;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                    }
-                    
-                    .wh-title {
-                        color: white;
-                        font-size: 24px;
-                        font-weight: bold;
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
-                    }
-                    
-                    .wh-close {
-                        background: rgba(239, 68, 68, 0.2);
-                        border: none;
-                        color: #ef4444;
-                        font-size: 20px;
-                        width: 35px;
-                        height: 35px;
-                        border-radius: 50%;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                    }
-                    
-                    .wh-close:hover {
-                        background: #ef4444;
-                        color: white;
-                    }
-                    
-                    .wh-mode-selector {
-                        display: grid;
-                        grid-template-columns: repeat(3, 1fr);
-                        gap: 10px;
-                        margin-bottom: 20px;
-                    }
-                    
-                    .wh-mode-btn {
-                        padding: 15px;
-                        border: 2px solid rgba(139, 92, 246, 0.3);
-                        background: rgba(139, 92, 246, 0.1);
-                        color: white;
-                        border-radius: 12px;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                        text-align: center;
-                    }
-                    
-                    .wh-mode-btn:hover {
-                        background: rgba(139, 92, 246, 0.2);
-                    }
-                    
-                    .wh-mode-btn.active {
-                        background: #8b5cf6;
-                        border-color: #8b5cf6;
-                    }
-                    
-                    .wh-mode-icon {
-                        font-size: 28px;
-                        margin-bottom: 5px;
-                    }
-                    
-                    .wh-mode-label {
-                        font-size: 13px;
-                        opacity: 0.9;
-                    }
-                    
-                    .wh-products-container {
-                        max-height: 250px;
-                        overflow-y: auto;
-                        margin-bottom: 15px;
-                        border-radius: 12px;
-                        background: rgba(0, 0, 0, 0.3);
-                        padding: 15px;
-                    }
-                    
-                    .wh-product-count {
-                        color: #a5b4fc;
-                        font-size: 14px;
-                        margin-bottom: 10px;
-                    }
-                    
-                    .wh-product-item {
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
-                        padding: 10px;
-                        margin-bottom: 8px;
-                        background: rgba(255, 255, 255, 0.05);
-                        border-radius: 8px;
-                        border: 1px solid transparent;
-                        transition: all 0.2s;
-                    }
-                    
-                    .wh-product-item:hover {
-                        background: rgba(255, 255, 255, 0.1);
-                    }
-                    
-                    .wh-product-item.selected {
-                        border-color: #8b5cf6;
-                        background: rgba(139, 92, 246, 0.2);
-                    }
-                    
-                    .wh-product-img {
-                        width: 50px;
-                        height: 50px;
-                        border-radius: 8px;
-                        object-fit: cover;
-                        background: rgba(255, 255, 255, 0.1);
-                    }
-                    
-                    .wh-product-info {
-                        flex: 1;
-                    }
-                    
-                    .wh-product-name {
-                        color: white;
-                        font-size: 14px;
-                        margin-bottom: 4px;
-                    }
-                    
-                    .wh-product-price {
-                        color: #a5b4fc;
-                        font-size: 12px;
-                    }
-                    
-                    .wh-footer {
-                        display: flex;
-                        gap: 10px;
-                        margin-top: 15px;
-                    }
-                    
-                    .wh-btn {
-                        flex: 1;
-                        padding: 15px;
-                        border: none;
-                        border-radius: 12px;
-                        font-size: 16px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                    }
-                    
-                    .wh-btn-primary {
-                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                        color: white;
-                    }
-                    
-                    .wh-btn-primary:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4);
-                    }
-                    
-                    .wh-btn-secondary {
-                        background: rgba(255, 255, 255, 0.1);
-                        color: white;
-                    }
-                    
-                    .wh-btn-secondary:hover {
-                        background: rgba(255, 255, 255, 0.2);
-                    }
-                    
-                    .wh-status {
-                        text-align: center;
-                        padding: 20px;
-                        color: #a5b4fc;
-                    }
-                    
-                    .wh-highlight {
-                        outline: 3px solid #8b5cf6 !important;
-                        outline-offset: 2px;
-                        cursor: pointer !important;
-                    }
-                    
-                    .wh-highlight:hover {
-                        background: rgba(139, 92, 246, 0.2) !important;
-                    }
-                </style>
-                
-                <div class="wh-modal">
-                    <div class="wh-header">
-                        <div class="wh-title">
-                            🛒 WebHarvest Pro
-                        </div>
-                        <button class="wh-close" id="wh-close">✕</button>
+                <div id="webharvest-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-count">0</div>
+                        <div class="stat-label">إجمالي المنتجات</div>
                     </div>
-                    
-                    <div class="wh-mode-selector">
-                        <button class="wh-mode-btn" data-mode="single">
-                            <div class="wh-mode-icon">📦</div>
-                            <div class="wh-mode-label">منتج واحد</div>
-                        </button>
-                        <button class="wh-mode-btn active" data-mode="multi">
-                            <div class="wh-mode-icon">📊</div>
-                            <div class="wh-mode-label">منتجات متعددة</div>
-                        </button>
-                        <button class="wh-mode-btn" data-mode="all">
-                            <div class="wh-mode-icon">📋</div>
-                            <div class="wh-mode-label">كل المنتجات</div>
-                        </button>
-                    </div>
-                    
-                    <div id="wh-content">
-                        <!-- Content will be inserted here -->
+                    <div class="stat-card">
+                        <div class="stat-value" id="selected-count">0</div>
+                        <div class="stat-label">المنتجات المحددة</div>
                     </div>
                 </div>
-            `;
-            
-            document.body.appendChild(this.overlay);
-            
-            // Bind events
-            this.bindEvents();
-            
-            // Show initial content
-            this.showMode('multi');
-        },
+                
+                <div id="webharvest-mode">
+                    <button class="mode-btn active" data-mode="auto">🔍 استخراج تلقائي</button>
+                    <button class="mode-btn" data-mode="manual">✋ تحديد يدوي</button>
+                </div>
+                
+                <div id="webharvest-products">
+                    <div style="text-align: center; color: #94a3b8; padding: 40px;">
+                        جاري البحث عن المنتجات...
+                    </div>
+                </div>
+                
+                <div id="webharvest-actions">
+                    <button class="action-btn" id="send-btn" disabled>
+                        📤 إرسال المنتجات (0)
+                    </button>
+                    <button class="action-btn" id="cancel-btn">❌ إلغاء</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Setup event listeners
+        setupEventListeners();
         
-        bindEvents() {
-            // Close button
-            this.overlay.querySelector('#wh-close').addEventListener('click', () => {
-                this.destroy();
-            });
-            
-            // Mode buttons
-            this.overlay.querySelectorAll('.wh-mode-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const mode = btn.dataset.mode;
-                    this.overlay.querySelectorAll('.wh-mode-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    this.showMode(mode);
-                });
-            });
-        },
+        // Auto-detect products
+        autoDetectProducts();
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Close button
+        document.getElementById('webharvest-close').onclick = closeOverlay;
+        document.getElementById('cancel-btn').onclick = closeOverlay;
+
+        // Mode buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.onclick = () => switchMode(btn.dataset.mode);
+        });
+
+        // Send button
+        document.getElementById('send-btn').onclick = sendProducts;
+    }
+
+    // Switch mode
+    function switchMode(newMode) {
+        mode = newMode;
         
-        showMode(mode) {
-            this.mode = mode;
-            this.selectedProducts = [];
-            
-            const content = this.overlay.querySelector('#wh-content');
-            
-            if (mode === 'single') {
-                content.innerHTML = `
-                    <div class="wh-status">
-                        <p>🎯 اضغط على أي منتج في الصفحة لتحديده</p>
-                        <p style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
-                            سيتم تمييز المنتجات المتاحة
-                        </p>
-                    </div>
-                `;
-                this.highlightProducts();
-            } else if (mode === 'multi') {
-                this.detectedProducts = ProductDetector.detectProducts();
-                content.innerHTML = `
-                    <div class="wh-products-container">
-                        <div class="wh-product-count">
-                            تم اكتشاف ${this.detectedProducts.length} منتج - اضغط للتحديد
-                        </div>
-                        ${this.detectedProducts.map((p, i) => `
-                            <div class="wh-product-item" data-index="${i}">
-                                <img class="wh-product-img" src="${p.images[0] || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 50 50%22><rect fill=%22%236366f1%22 width=%2250%22 height=%2250%22/><text x=%2225%22 y=%2230%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22>📦</text></svg>'}" alt="">
-                                <div class="wh-product-info">
-                                    <div class="wh-product-name">${p.name.slice(0, 50)}${p.name.length > 50 ? '...' : ''}</div>
-                                    <div class="wh-product-price">${p.price ? p.price + ' جنيه' : 'السعر غير متوفر'}</div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="wh-footer">
-                        <button class="wh-btn wh-btn-primary" id="wh-send">
-                            إرسال ${this.selectedProducts.length} منتج
-                        </button>
-                        <button class="wh-btn wh-btn-secondary" id="wh-cancel">
-                            إلغاء التحديد
-                        </button>
-                    </div>
-                `;
-                
-                // Bind product selection
-                content.querySelectorAll('.wh-product-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        item.classList.toggle('selected');
-                        this.updateSelection();
-                    });
-                });
-                
-                // Bind send button
-                content.querySelector('#wh-send').addEventListener('click', () => {
-                    this.sendProducts();
-                });
-                
-                // Bind cancel button
-                content.querySelector('#wh-cancel').addEventListener('click', () => {
-                    this.selectedProducts = [];
-                    content.querySelectorAll('.wh-product-item').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-                    this.updateSelection();
-                });
-                
-            } else if (mode === 'all') {
-                this.detectedProducts = ProductDetector.detectProducts();
-                this.selectedProducts = [...this.detectedProducts];
-                
-                content.innerHTML = `
-                    <div class="wh-products-container">
-                        <div class="wh-product-count">
-                            ✅ تم تحديد ${this.selectedProducts.length} منتج
-                        </div>
-                        <div style="max-height: 200px; overflow-y: auto;">
-                            ${this.selectedProducts.slice(0, 10).map(p => `
-                                <div class="wh-product-item selected">
-                                    <img class="wh-product-img" src="${p.images[0] || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 50 50%22><rect fill=%22%236366f1%22 width=%2250%22 height=%2250%22/><text x=%2225%22 y=%2230%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2220%22>📦</text></svg>'}" alt="">
-                                    <div class="wh-product-info">
-                                        <div class="wh-product-name">${p.name.slice(0, 50)}${p.name.length > 50 ? '...' : ''}</div>
-                                        <div class="wh-product-price">${p.price ? p.price + ' جنيه' : 'السعر غير متوفر'}</div>
-                                    </div>
-                                </div>
-                            `).join('')}
-                            ${this.selectedProducts.length > 10 ? `
-                                <div style="text-align: center; padding: 10px; color: #a5b4fc;">
-                                    ... و ${this.selectedProducts.length - 10} منتج آخر
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div class="wh-footer">
-                        <button class="wh-btn wh-btn-primary" id="wh-send">
-                            إرسال ${this.selectedProducts.length} منتج
-                        </button>
-                        <button class="wh-btn wh-btn-secondary" id="wh-cancel">
-                            إلغاء
-                        </button>
-                    </div>
-                `;
-                
-                // Bind send button
-                content.querySelector('#wh-send').addEventListener('click', () => {
-                    this.sendProducts();
-                });
-                
-                // Bind cancel button
-                content.querySelector('#wh-cancel').addEventListener('click', () => {
-                    this.destroy();
-                });
-            }
-        },
+        // Update UI
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        // If manual mode, enable selection on page
+        if (mode === 'manual') {
+            enableManualSelection();
+        } else {
+            disableManualSelection();
+        }
+    }
+
+    // Auto detect products
+    function autoDetectProducts() {
+        const products = [];
         
-        highlightProducts() {
-            // Remove previous highlights
-            document.querySelectorAll('.wh-highlight').forEach(el => {
-                el.classList.remove('wh-highlight');
-            });
+        // Common product selectors
+        const selectors = [
+            // Generic
+            '[class*="product"]',
+            '[class*="item"]',
+            '[data-product]',
+            '[data-product-id]',
+            '[itemtype*="Product"]',
             
-            // Highlight all product cards
-            const products = document.querySelectorAll('[class*="product"], [class*="item"], [class*="card"]');
-            products.forEach(el => {
-                const rect = el.getBoundingClientRect();
-                if (rect.width > 50 && rect.height > 50) {
-                    el.classList.add('wh-highlight');
-                    el.addEventListener('click', this.handleSingleSelect.bind(this), { once: true });
+            // E-commerce platforms
+            '.product-card',
+            '.product-item',
+            '.product-box',
+            '.product-wrapper',
+            '.shop-item',
+            '.item-box',
+            
+            // Amazon
+            '[data-component-type="s-search-result"]',
+            '.s-result-item',
+            
+            // Noon
+            '[data-qa="product-card"]',
+            
+            // Jumia
+            '.sku',
+            '.product',
+            
+            // Custom
+            '.card.product',
+            'article.product',
+            'div[class*="product"][class*="card"]'
+        ];
+
+        // Try each selector
+        for (const selector of selectors) {
+            const elements = document.querySelectorAll(selector);
+            
+            elements.forEach(el => {
+                // Skip if already found
+                if (el.dataset.webharvestFound) return;
+                el.dataset.webharvestFound = 'true';
+
+                // Extract product data
+                const product = extractProductData(el);
+                
+                if (product && product.name) {
+                    products.push(product);
                 }
             });
-        },
-        
-        handleSingleSelect(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            
-            const product = ProductDetector.extractProductData(event.currentTarget);
-            this.selectedProducts = [product];
-            this.sendProducts();
-        },
-        
-        updateSelection() {
-            const selected = this.overlay.querySelectorAll('.wh-product-item.selected');
-            this.selectedProducts = [];
-            
-            selected.forEach(item => {
-                const index = parseInt(item.dataset.index);
-                this.selectedProducts.push(this.detectedProducts[index]);
-            });
-            
-            const sendBtn = this.overlay.querySelector('#wh-send');
-            if (sendBtn) {
-                sendBtn.textContent = `إرسال ${this.selectedProducts.length} منتج`;
+        }
+
+        // Update UI
+        updateProductsList(products);
+    }
+
+    // Extract product data from element
+    function extractProductData(el) {
+        const nameSelectors = [
+            'h1', 'h2', 'h3', 'h4',
+            '[class*="title"]',
+            '[class*="name"]',
+            '.product-title',
+            '.product-name',
+            '.title',
+            '.name',
+            'a[title]',
+            '[itemprop="name"]'
+        ];
+
+        const priceSelectors = [
+            '[class*="price"]',
+            '.price',
+            '.product-price',
+            '[itemprop="price"]',
+            '[data-price]',
+            '.amount'
+        ];
+
+        const imageSelectors = [
+            'img',
+            '[class*="image"]',
+            '.product-image',
+            '[itemprop="image"]'
+        ];
+
+        // Extract name
+        let name = '';
+        for (const selector of nameSelectors) {
+            const nameEl = el.querySelector(selector);
+            if (nameEl && nameEl.textContent.trim()) {
+                name = nameEl.textContent.trim();
+                break;
             }
-        },
-        
-        sendProducts() {
-            if (this.selectedProducts.length === 0) {
-                alert('الرجاء تحديد منتج واحد على الأقل');
-                return;
+        }
+
+        // Extract price
+        let price = 0;
+        for (const selector of priceSelectors) {
+            const priceEl = el.querySelector(selector);
+            if (priceEl) {
+                const text = priceEl.textContent || priceEl.dataset.price || '';
+                const match = text.match(/[\d,]+\.?\d*/);
+                if (match) {
+                    price = parseFloat(match[0].replace(/,/g, ''));
+                    break;
+                }
             }
-            
-            console.log('[WebHarvest] Sending products:', this.selectedProducts.length);
-            
-            // Store data in localStorage
+        }
+
+        // Extract image
+        let image = '';
+        for (const selector of imageSelectors) {
+            const imgEl = el.querySelector(selector);
+            if (imgEl) {
+                image = imgEl.src || imgEl.dataset.src || '';
+                if (image && !image.includes('data:image')) break;
+            }
+        }
+
+        // Extract URL
+        const linkEl = el.querySelector('a[href]');
+        const url = linkEl ? linkEl.href : window.location.href;
+
+        // Extract description
+        const descEl = el.querySelector('[class*="description"], [itemprop="description"], p');
+        const description = descEl ? descEl.textContent.trim() : '';
+
+        return {
+            id: Date.now() + Math.random(),
+            name: name,
+            price: price,
+            image: image,
+            url: url,
+            description: description,
+            currency: 'EGP',
+            source: window.location.hostname,
+            scrapedAt: new Date().toISOString()
+        };
+    }
+
+    // Update products list
+    function updateProductsList(products) {
+        selectedProducts = products;
+        
+        const container = document.getElementById('webharvest-products');
+        
+        if (products.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; color: #94a3b8; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">😕</div>
+                    <div>لم يتم العثور على منتجات</div>
+                    <div style="font-size: 14px; margin-top: 10px;">جرب استخدام "تحديد يدوي"</div>
+                </div>
+            `;
+            document.getElementById('send-btn').disabled = true;
+            return;
+        }
+
+        container.innerHTML = products.map((p, i) => `
+            <div class="product-item selected" data-index="${i}">
+                <div>
+                    <div class="product-name">${p.name}</div>
+                    <div style="color: #94a3b8; font-size: 12px; margin-top: 5px;">${p.source}</div>
+                </div>
+                <div class="product-price">${p.price ? p.price + ' ' + p.currency : 'غير محدد'}</div>
+            </div>
+        `).join('');
+
+        // Update stats
+        document.getElementById('total-count').textContent = products.length;
+        document.getElementById('selected-count').textContent = products.length;
+        document.getElementById('send-btn').textContent = `📤 إرسال المنتجات (${products.length})`;
+        document.getElementById('send-btn').disabled = false;
+
+        // Add click handlers
+        container.querySelectorAll('.product-item').forEach(item => {
+            item.onclick = () => toggleProduct(item);
+        });
+    }
+
+    // Toggle product selection
+    function toggleProduct(item) {
+        const index = parseInt(item.dataset.index);
+        item.classList.toggle('selected');
+        
+        const selected = document.querySelectorAll('.product-item.selected').length;
+        document.getElementById('selected-count').textContent = selected;
+        document.getElementById('send-btn').textContent = `📤 إرسال المنتجات (${selected})`;
+        document.getElementById('send-btn').disabled = selected === 0;
+    }
+
+    // Enable manual selection
+    function enableManualSelection() {
+        document.body.style.cursor = 'crosshair';
+        
+        // Add click handler to all elements
+        document.addEventListener('click', handleManualClick, true);
+        
+        alert('✋ انقر على أي عنصر لتحديده كمنتج');
+    }
+
+    // Disable manual selection
+    function disableManualSelection() {
+        document.body.style.cursor = '';
+        document.removeEventListener('click', handleManualClick, true);
+    }
+
+    // Handle manual click
+    function handleManualClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const product = extractProductData(e.target.closest('[class*="product"], [class*="item"], div, article') || e.target);
+        
+        if (product && product.name) {
+            selectedProducts.push(product);
+            updateProductsList(selectedProducts);
+        }
+    }
+
+    // Send products to WebHarvest Pro
+    function sendProducts() {
+        const btn = document.getElementById('send-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loader"></span> جاري الإرسال...';
+
+        // Get selected products
+        const selected = [];
+        document.querySelectorAll('.product-item.selected').forEach(item => {
+            const index = parseInt(item.dataset.index);
+            selected.push(selectedProducts[index]);
+        });
+
+        if (selected.length === 0) {
+            alert('⚠️ لم يتم تحديد أي منتجات');
+            btn.disabled = false;
+            btn.textContent = '📤 إرسال المنتجات (0)';
+            return;
+        }
+
+        try {
+            // Create data
             const data = {
-                products: this.selectedProducts,
-                source: window.location.href,
-                scrapedAt: new Date().toISOString()
+                products: selected,
+                source: window.location.hostname,
+                url: window.location.href,
+                timestamp: Date.now()
             };
-            
-            try {
-                localStorage.setItem(CONFIG.storageKey, JSON.stringify(data));
-                console.log('[WebHarvest] Data saved to localStorage');
-            } catch (e) {
-                console.error('[WebHarvest] Error saving to localStorage:', e);
-            }
+
+            // Encode data
+            const jsonStr = JSON.stringify(data);
+            const encoded = btoa(encodeURIComponent(jsonStr));
+
+            // Open WebHarvest Pro with data
+            const url = `${CONFIG.webharvestUrl}?import=${encoded}`;
             
             // Show success message
-            this.showSuccess(this.selectedProducts.length);
+            alert(`✅ تم استخراج ${selected.length} منتج!\nسيتم فتح WebHarvest Pro الآن...`);
             
-            // Open WebHarvest Pro
-            setTimeout(() => {
-                const targetUrl = CONFIG.targetOrigin + CONFIG.targetPath + '?import=' + Date.now();
-                window.open(targetUrl, '_blank');
-                this.destroy();
-            }, 500);
-        },
-        
-        showSuccess(count) {
-            const content = this.overlay.querySelector('#wh-content');
-            content.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <div style="font-size: 60px; margin-bottom: 20px;">✅</div>
-                    <div style="color: white; font-size: 24px; margin-bottom: 10px;">
-                        تم استخراج ${count} منتج بنجاح!
-                    </div>
-                    <div style="color: #a5b4fc; font-size: 14px;">
-                        جارٍ فتح WebHarvest Pro...
-                    </div>
-                </div>
-            `;
-        },
-        
-        destroy() {
-            if (this.overlay) {
-                this.overlay.remove();
-            }
-            window.__webharvest_running = false;
+            // Open in new tab
+            window.open(url, '_blank');
             
-            // Remove highlights
-            document.querySelectorAll('.wh-highlight').forEach(el => {
-                el.classList.remove('wh-highlight');
-            });
+            // Close overlay
+            closeOverlay();
+
+        } catch (error) {
+            console.error('Error sending products:', error);
+            alert('❌ حدث خطأ أثناء الإرسال: ' + error.message);
+            btn.disabled = false;
+            btn.textContent = `📤 إرسال المنتجات (${selected.length})`;
         }
-    };
-    
-    // ==================== Initialize ====================
-    UIManager.create();
-    
+    }
+
+    // Close overlay
+    function closeOverlay() {
+        if (overlay) {
+            overlay.remove();
+            overlay = null;
+        }
+        window.__webharvest_running = false;
+        disableManualSelection();
+    }
+
+    // Initialize
+    createOverlay();
+
 })();
